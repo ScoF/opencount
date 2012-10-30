@@ -2,6 +2,8 @@ import os, sys, pdb, traceback, time, shutil, cProfile
 import cPickle as pickle    
 import cv
 
+from os.path import join as pathjoin
+
 import hart, diebold, sequoia
 
 sys.path.append('..')
@@ -9,31 +11,17 @@ import grouping.partask as partask
 import grouping.make_overlays as make_overlays
 import pixel_reg.imagesAlign as imagesAlign
 
-decode_fns = {'hart': hart.decode}
+# Get this script's directory. Necessary to know this information
+# since the current working directory may not be the same as where
+# this script lives (which is important for loading resources like
+# imgs)
+try:
+    MYDIR = os.path.abspath(os.path.dirname(__file__))
+except NameError:
+    # This script is being run directly
+    MYDIR = os.path.abspath(sys.path[0])
 
-# 5000 imgs (/media/data1/audits_2012/orange/votedballots): 
-#     Single Image Read at a time (12 procs):
-#         251.42 s    (0.05 s per ballot)
-#     
-# 500 imgs
-#     Single Image Read at a time (12 procs):
-#         5.647 s     (0.011 s per ballot)
-#     Single Img (single proc):
-#         39.34 s     (0.078 s per ballot)
-#     50-imgs (12 proc):
-#         5.845 s
-#     50-imgs (1 proc):
-#         39.162 s    (0.078 s per ballot)
-#
-# 100 imgs
-#     Single img (12 proc):
-#         1.243 s     (0.0124 s per ballot)
-#     Single img (1 proc):
-#         7.899 s     (0.078 s per ballot)
-#     50-imgs (12 proc):
-#         1.334 s     (0.0133 s per ballot)
-#     50-imgs (1 proc):
-#         8.007 s     (0.08 s per ballot)
+decode_fns = {'hart': hart.decode}
 
 def partition_imgs(imgpaths, vendor="hart", queue=None):
     """ Partition the images in IMGPATHS, assuming that the images
@@ -46,14 +34,19 @@ def partition_imgs(imgpaths, vendor="hart", queue=None):
             {(barcode_i, ...): [(imgpath_i, isflip_i, bbs_i), ...]}
     """
     grouping = {} 
+    try:
+        vendor = vendor.lower()
+    except:
+        print "Error -- VENDOR must be string: ", vendor
+        return None
     decode = decode_fns.get(vendor, None)
     if not decode:
         print "Unrecognized vendor:", vendor
         return None
     kwargs = {}
     if vendor == 'hart':
-        kwargs['TOP_GUARD'] = cv.LoadImage('hart_topguard.png', cv.CV_LOAD_IMAGE_GRAYSCALE)
-        kwargs['BOT_GUARD'] = cv.LoadImage('hart_botguard.png', cv.CV_LOAD_IMAGE_GRAYSCALE)
+        kwargs['TOP_GUARD'] = cv.LoadImage(pathjoin(MYDIR, 'hart_topguard.png'), cv.CV_LOAD_IMAGE_GRAYSCALE)
+        kwargs['BOT_GUARD'] = cv.LoadImage(pathjoin(MYDIR, 'hart_botguard.png'), cv.CV_LOAD_IMAGE_GRAYSCALE)
     
     for imgpath in imgpaths:
         try:

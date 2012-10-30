@@ -11,7 +11,7 @@ sys.path.append('..')
 from tab_wrap import tab_wrap
 from projconfig_new.ProjectPanel import ProjectPanel, Project
 from projconfig_new.ConfigPanel import ConfigPanel
-from partitions.PartitionPanel import PartitionPanel
+from partitions.PartitionPanel import PartitionMainPanel
 from specify_voting_targets.select_targets import SelectTargetsMainPanel
 from labelcontest.labelcontest import LabelContest
 from grouping.define_attributes import DefineAttributesPanel
@@ -60,7 +60,7 @@ class MainFrame(wx.Frame):
     def setup_pages(self):
         self.panel_projects = ProjectPanel(self.notebook)
         self.panel_config = ConfigPanel(self.notebook)
-        self.panel_partition = PartitionPanel(self.notebook)
+        self.panel_partition = PartitionMainPanel(self.notebook)
         self.panel_seltargets = SelectTargetsMainPanel(self.notebook)
         self.panel_define_attrs = DefineAttributesPanel(self.notebook)
         self.panel_define_attrs.unsubscribe_pubsubs()
@@ -100,7 +100,7 @@ class MainFrame(wx.Frame):
         elif new == MainFrame.CONFIG:
             self.panel_config.start(self.project)
         elif new == MainFrame.PARTITION:
-            pass
+            self.panel_partition.start(self.project)
         elif new == MainFrame.SELTARGETS:
             pass
         elif new == MainFrame.DEFINE_ATTRS:

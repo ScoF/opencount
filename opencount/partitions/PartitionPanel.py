@@ -7,10 +7,12 @@ except:
 from os.path import join as pathjoin
 import wx
 from wx.lib.scrolledpanel import ScrolledPanel
+from wx.lib.pubsub import Publisher
 
 sys.path.append('..')
 
-import util, barcode
+import util
+import barcode.partition_imgs as partition_imgs
 
 BALLOT_VENDORS = ("Diebold", "Hart", "Sequoia")
 
@@ -31,7 +33,7 @@ class PartitionMainPanel(wx.Panel):
 
     def start(self, proj):
         self.proj = proj
-        self.partitionpanel.start()
+        self.partitionpanel.start('../test-ballots-ek/orange_tiny/voted/')
         
 class PartitionPanel(ScrolledPanel):
     PARTITION_JOBID = util.GaugeID("PartitionJobId")
@@ -78,7 +80,8 @@ class PartitionPanel(ScrolledPanel):
                 self.queue = queue
                 self.tlisten = tlisten
             def run(self):
-                partitioning = barcode.partition_imgs(self.voteddir, vendor=vendor, queue=queue)
+                partitioning = partition_imgs.partition_imgs(self.voteddir, vendor=vendor, queue=queue)
+                wx.CallAfter(Publisher().sendMessage, "signals.MyGauge.done", (self.jobid,))
                 wx.CallAfter(self.callback, partitioning)
                 self.tlisten.stop()
         class ListenThread(threading.Thread):
@@ -101,23 +104,30 @@ class PartitionPanel(ScrolledPanel):
                         val = self.queue.get(block=True, timeout=1)
                         if val == True:
                             wx.CallAfter(Publisher().sendMessage, "signals.MyGauge.tick", (self.jobid,))
-                    except:
+                    except Queue.Empty:
                         pass
 
         vendor = self.vendor_dropdown.GetValue()
+        imgpaths = []
+        for dirpath, dirnames, filenames in os.walk(self.voteddir):
+            for imgname in [f for f in filenames if util.is_image_ext(f)]:
+                imgpaths.append(pathjoin(dirpath, imgname))
         queue = Queue.Queue()
         tlisten = ListenThread(queue, self.PARTITION_JOBID)
 
-        t = PartitionThread(self.voteddir, vendor, self.on_partitiondone,
+        t = PartitionThread(imgpaths, vendor, self.on_partitiondone,
                             self.PARTITION_JOBID, queue, tlisten)
-        numtasks = 100
-        gauge = util.MyGauge(self, numtasks, thread=t, msg="Running Partitioning...",
+        numtasks = len(imgpaths)
+        gauge = util.MyGauge(self, 1, thread=t, msg="Running Partitioning...",
                              job_id=self.PARTITION_JOBID)
+        tlisten.start()
         t.start()
         gauge.Show()
+        wx.CallAfter(Publisher().sendMessage, "signals.MyGauge.nextjob", (numtasks, self.PARTITION_JOBID))
         
     def on_partitiondone(self, partitioning):
         print "...Partitioning Done..."
+        print partitioning
 
 
         
