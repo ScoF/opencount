@@ -23,7 +23,7 @@ from threshold.threshold import ThresholdPanel
 from quarantine.quarantinepanel import QuarantinePanel
 from post_processing.postprocess import ResultsPanel
 
-PROJROOTDIR = '../projects_new'
+PROJROOTDIR = 'projects_new'
 
 class MainFrame(wx.Frame):
     PROJECT = 0
