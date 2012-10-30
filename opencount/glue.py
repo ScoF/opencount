@@ -9,7 +9,7 @@ from wx.lib.scrolledpanel import ScrolledPanel
 
 sys.path.append('..')
 from tab_wrap import tab_wrap
-from projconfig_new.ProjectPanel import ProjectPanel
+from projconfig_new.ProjectPanel import ProjectPanel, Project
 from projconfig_new.ConfigPanel import ConfigPanel
 from partitions.PartitionPanel import PartitionPanel
 from specify_voting_targets.select_targets import SelectTargetsMainPanel
@@ -29,7 +29,7 @@ class MainFrame(wx.Frame):
     PROJECT = 0
     CONFIG = 1
     PARTITION = 2
-    SELTARGS = 3
+    SELTARGETS = 3
     DEFINE_ATTRS = 4
     LABEL_ATTRS = 5
     LABEL_DIGATTRS = 6
@@ -42,9 +42,13 @@ class MainFrame(wx.Frame):
     def __init__(self, parent, *args, **kwargs):
         wx.Frame.__init__(self, parent, *args, **kwargs)
         
+        # PROJECT: Current Project being worked on.
+        self.project = None
+
         self.init_ui()
         
         self.Bind(wx.EVT_NOTEBOOK_PAGE_CHANGED, self.onPageChange)
+        self.Bind(wx.EVT_CLOSE, self.onClose)
 
         self.notebook.ChangeSelection(0)
         self.notebook.SendPageChangedEvent(-1, 0)
@@ -93,6 +97,40 @@ class MainFrame(wx.Frame):
         
         if new == MainFrame.PROJECT:
             self.panel_projects.start(PROJROOTDIR)
+        elif new == MainFrame.CONFIG:
+            self.panel_config.start(self.project)
+        elif new == MainFrame.PARTITION:
+            pass
+        elif new == MainFrame.SELTARGETS:
+            pass
+        elif new == MainFrame.DEFINE_ATTRS:
+            pass
+        elif new == MainFrame.LABEL_ATTRS:
+            pass
+        elif new == MainFrame.LABEL_DIGATTRS:
+            pass
+        elif new == MainFrame.CORRECT_GROUPING:
+            pass
+        elif new == MainFrame.LABEL_CONTESTS:
+            pass
+        elif new == MainFrame.RUN:
+            pass
+        elif new == MainFrame.QUARANTINE:
+            pass
+        elif new == MainFrame.PROCESS:
+            pass
+
+    def onClose(self, evt):
+        """
+        Triggered when the user/program exits/closes the MainFrame.
+        """
+        if self.project:
+            self.project.save()
+        if self.notebook.GetCurrentPage() == self.panel_define_attrs:
+            self.panel_define_attrs.stop()
+        for fn in Project.closehook:
+            fn()
+        evt.Skip()
 
 def main():
     app = wx.App(False)

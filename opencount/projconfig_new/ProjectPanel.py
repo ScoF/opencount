@@ -1,4 +1,5 @@
-import sys, os
+import sys, os, re, pdb, traceback
+from os.path import join as pathjoin
 try:
     import cPickle as pickle
 except:
@@ -56,16 +57,16 @@ class ProjectPanel(wx.Panel):
 
     def get_project(self):
         """ Returns the Project instance of the selected project. """
-        idx = self.GetSelection()
+        idx = self.listbox_projs.GetSelection()
         if idx == wx.NOT_FOUND:
             print "NONE SELECTED"
             return None
         return self.projects[idx]
 
-    def add_project(proj):
+    def add_project(self, proj):
         self.projects.append(proj)
         self.listbox_projs.Append(proj.name)
-    def contains_project(projname):
+    def contains_project(self, projname):
         return projname in [proj.name for proj in self.projects]
     def create_new_project(self, name):
         proj = create_project(name, pathjoin(self.projdir, name))
@@ -91,7 +92,7 @@ project name. Please only use letters, numbers, and punctuation.'.format(project
                     warn.ShowModal()
                     return
                 self.create_new_project(project_name)
-                self.listbox_projects.SetStringSelection(project_name)
+                self.listbox_projs.SetStringSelection(project_name)
 
     def onButton_remove(self, evt):
         """
@@ -99,8 +100,8 @@ project name. Please only use letters, numbers, and punctuation.'.format(project
         and from the projects/ directory.
         """
         self.projects.remove(project)
-        idx = self.listbox_projects.FindString(project.name)
-        self.listbox_projects.Delete(idx)
+        idx = self.listbox_projs.FindString(project.name)
+        self.listbox_projs.Delete(idx)
         projdir = project.projdir_path
         print 'removing everything in:', projdir
         #shutil.rmtree(projdir)
@@ -160,7 +161,6 @@ class Project(object):
                      'patch_loc_dir': pathjoin(projdir_path, 'precinct_locations'),
                      'attr_internal': pathjoin(projdir_path, 'attr_internal.p'),
                      'grouping_results': pathjoin(projdir_path, 'grouping_results.csv'),
-                     'tempmatch_param': str(find_targets_wizard.SpecifyTargetsPanel.TEMPMATCH_DEFAULT_PARAM),
                      'ballot_attributesfile': pathjoin(projdir_path, 'ballot_attributes.p'),
                      'imgsize': (0,0),
                      'votedballots_straightdir': pathjoin(projdir_path, 'votedballots_straight'),
@@ -212,6 +212,9 @@ class Project(object):
         for k,v in self.vals.items():
             setattr(self, k, v)
 
+    def save(self):
+        write_project(self)
+
     def __repr__(self):
         return 'Project({0})'.format(self.name)
 
@@ -226,13 +229,14 @@ def load_projects(projdir):
     for dirpath, dirnames, filenames in os.walk(projdir):
         for f in filenames:
             if f == PROJ_FNAME:
+                fullpath = pathjoin(dirpath, f)
                 try:
-                    projects.append(pickle.load(open(f, 'rb')))
+                    projects.append(pickle.load(open(fullpath, 'rb')))
                 except:
                     pass
     return projects
 
-def create_project(projrootdir, name):
+def create_project(name, projrootdir):
     proj = Project(name, projrootdir)
     projoutpath = pathjoin(projrootdir, PROJ_FNAME)
     try: os.makedirs(projrootdir)
