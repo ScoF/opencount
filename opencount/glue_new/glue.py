@@ -23,11 +23,31 @@ from threshold.threshold import ThresholdPanel
 from quarantine.quarantinepanel import QuarantinePanel
 from post_processing.postprocess import ResultsPanel
 
+PROJROOTDIR = '../projects_new'
+
 class MainFrame(wx.Frame):
+    PROJECT = 0
+    CONFIG = 1
+    PARTITION = 2
+    SELTARGS = 3
+    DEFINE_ATTRS = 4
+    LABEL_ATTRS = 5
+    LABEL_DIGATTRS = 6
+    CORRECT_GROUPING = 7
+    LABEL_CONTESTS = 8
+    RUN = 9
+    QUARANTINE = 10
+    PROCESS = 11
+
     def __init__(self, parent, *args, **kwargs):
         wx.Frame.__init__(self, parent, *args, **kwargs)
         
         self.init_ui()
+        
+        self.Bind(wx.EVT_NOTEBOOK_PAGE_CHANGED, self.onPageChange)
+
+        self.notebook.ChangeSelection(0)
+        self.notebook.SendPageChangedEvent(0, 0)
 
     def init_ui(self):
         self.notebook = wx.Notebook(self)
@@ -61,9 +81,16 @@ class MainFrame(wx.Frame):
                       (self.panel_set_threshold, "Set Threshold"),
                       (self.panel_quarantine, "Process Quarantine"),
                       (self.panel_process, "Results")]
-        for panel, text in self.pages[1:]:
+        for panel, text in self.pages:
             self.notebook.AddPage(panel, text)
         
+    def onPageChange(self, evt):
+        old = evt.GetOldSelection()
+        new = evt.GetSelection()
+        
+        if new == MainFrame.PROJECT:
+            self.panel_projects.start(PROJROOTDIR)
+
 def main():
     app = wx.App(False)
     f = MainFrame(None)
