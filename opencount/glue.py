@@ -99,9 +99,9 @@ class MainFrame(wx.Frame):
         elif old == MainFrame.CONFIG:
             self.panel_config.stop()
         elif old == MainFrame.PARTITION:
-            pass
+            self.panel_partition.stop()
         elif old == MainFrame.SELTARGETS:
-            pass
+            self.panel_seltargets.stop()
         elif old == MainFrame.DEFINE_ATTRS:
             pass
         elif old == MainFrame.LABEL_ATTRS:
@@ -128,7 +128,8 @@ class MainFrame(wx.Frame):
             self.panel_partition.start(self.project, pathjoin(self.project.projdir_path,
                                                               '_state_partition.p'))
         elif new == MainFrame.SELTARGETS:
-            pass
+            self.panel_seltargets.start(self.project, pathjoin(self.project.projdir_path,
+                                                               '_state_seltargets.p'))
         elif new == MainFrame.DEFINE_ATTRS:
             pass
         elif new == MainFrame.LABEL_ATTRS:

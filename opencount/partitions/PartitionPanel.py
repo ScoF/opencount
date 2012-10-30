@@ -36,7 +36,13 @@ class PartitionMainPanel(wx.Panel):
         self.partitionpanel.start(self.proj.voteddir, stateP)
         self.proj.addCloseEvent(self.partitionpanel.save_session)
     def stop(self):
+        self.partitionpanel.save_session()
         self.proj.removeCloseEvent(self.partitionpanel.save_session)
+        self.export_results()
+    def export_results(self):
+        partition_outP = pathjoin(self.proj.projdir_path, self.proj.partitions)
+        pickle.dump(self.partitionpanel.partitioning, open(partition_outP, 'wb'),
+                    pickle.HIGHEST_PROTOCOL)
         
 class PartitionPanel(ScrolledPanel):
     PARTITION_JOBID = util.GaugeID("PartitionJobId")
@@ -88,14 +94,22 @@ class PartitionPanel(ScrolledPanel):
         try:
             state = pickle.load(open(self.stateP, 'rb'))
             self.voteddir = state['voteddir']
+            self.vendor = state['vendor']
             self.partitioning = state['partitioning']
+            self.vendor_dropdown.SetStringSelection(self.vendor)
+            if self.partitioning != None:
+                self.num_partitions_txt.SetLabel(str(len(self.partitioning)))
+                self.sizer_stats.ShowItems(True)
+                self.Layout()
         except:
             return False
         return True
     def save_session(self):
+        print "...PartitionPanel: Saving state..."
         state = {'voteddir': self.voteddir,
+                 'vendor': self.vendor_dropdown.GetStringSelection(),
                  'partitioning': self.partitioning}
-        pickle.dump(open(self.stateP, 'wb'))
+        pickle.dump(state, open(self.stateP, 'wb'))
 
     def onButton_run(self, evt):
         class PartitionThread(threading.Thread):

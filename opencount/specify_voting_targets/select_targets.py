@@ -4,6 +4,8 @@ try:
 except ImportError:
     import pickle
 
+from os.path import join as pathjoin
+
 sys.path.append('..')
 
 import wx, cv, numpy as np, Image
@@ -12,17 +14,37 @@ from wx.lib.scrolledpanel import ScrolledPanel
 import util_gui, util
 import grouping.partask as partask
 
-class SelectTargetsMainPanel(ScrolledPanel):
+class SelectTargetsMainPanel(wx.Panel):
     def __init__(self, parent, *args, **kwargs):
-        ScrolledPanel.__init__(self, parent, *args, **kwargs)
-        self.parent = parent
+        wx.Panel.__init__(self, parent, *args, **kwargs)
 
         self.proj = None
-        self.imgpaths = None
+        self.init_ui()
 
-    def start(self, proj, imgpaths):
+    def init_ui(self):
+        self.seltargets_panel = SelectTargetsPanel(self)
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.sizer.Add(self.seltargets_panel, proportion=1, flag=wx.EXPAND)
+        self.SetSizer(self.sizer)
+        self.Layout()
+
+    def start(self, proj, stateP):
         self.proj = proj
-        self.imgpaths = imgpaths
+        # PARTITIONS: dict {(barcode_i, ...): [(imgpath_i, isflip_i, bbs_i), ...]}
+        partitions_map = pickle.load(open(pathjoin(proj.projdir_path,
+                                                   proj.partitions), 'rb'))
+        # 0.) Munge PARTITIONS_MAP to list of lists of lists
+        partitions = []
+        for partitionID, group in partitions_map.iteritems():
+            # TODO: Account for multipage
+            partition = [[imgpath] for (imgpath, isflip, bbs) in group]
+            partitions.append(partition)
+
+        self.proj.addCloseEvent(self.seltargets_panel.save_session)
+        self.seltargets_panel.start(partitions, stateP)
+
+    def stop(self):
+        self.proj.removeCloseEvent(self.seltargets_panel.save_session)
 
 class SelectTargetsPanel(ScrolledPanel):
     """ A widget that allows you to find voting targets on N ballot
@@ -34,7 +56,7 @@ class SelectTargetsPanel(ScrolledPanel):
         ScrolledPanel.__init__(self, parent, *args, **kwargs)
         self.parent = parent
 
-        # self.partitions: [[(imgpath_i0front, ...), ...], [(imgpath_i1front, ...)], ...]
+        # self.partitions: [[[imgpath_i0front, ...], ...], [[imgpath_i1front, ...], ...], ...]
         self.partitions = None
         # self.inv_map: {str imgpath: (int i, int j, int page)}
         self.inv_map = None
@@ -53,6 +75,9 @@ class SelectTargetsPanel(ScrolledPanel):
         # Window sizes for Smoothing
         self.win_ballot = (13, 13)
         self.win_target = (15, 15)
+
+        # STATEP: Path for state file.
+        self.stateP = None
 
         self.toolbar = Toolbar(self)
         self.imagepanel = TemplateMatchDrawPanel(self, self.do_tempmatch)
@@ -111,23 +136,47 @@ this partition.")
 
         self.SetSizer(self.sizer)
 
-    def start(self, partitions):
+    def start(self, partitions, stateP):
+        """
+        Input:
+            list PARTITIONS: A list of lists of lists, encoding partition+ballot+side(s):
+                [[[imgpath_i0_front, ...], ...], [[imgpath_i1_front, ...], ...], ...]
+                
+            str STATEP: Path of the statefile.
+        """
         self.partitions = partitions
-        # 0.) Populate my self.INV_MAP
-        self.inv_map = {}
-        self.boxes = {}
-        for i, imgpaths in enumerate(self.partitions):
-            for j, ballot in enumerate(imgpaths):
-                for page, imgpath in enumerate(ballot):
-                    self.inv_map[imgpath] = i, j, page
-            # (allows for variable-num pages)
-            self.boxes[i] = [[] for _ in xrange(len(ballot))]
+        print 'partitions: ', partitions
+        self.stateP = stateP
+        if not self.restore_session():
+            # 0.) Populate my self.INV_MAP
+            self.inv_map = {}
+            self.boxes = {}
+            for i, imgpaths in enumerate(self.partitions):
+                for j, ballot in enumerate(imgpaths):
+                    for page, imgpath in enumerate(ballot):
+                        self.inv_map[imgpath] = i, j, page
+                # (allows for variable-num pages)
+                self.boxes[i] = [[] for _ in xrange(len(ballot))]
         # 1.) Update any StaticTexts in the UI.
         self.txt_totalpartitions.SetLabel(str(len(self.partitions)))
         self.txt_totalballots.SetLabel(str(len(self.partitions[0])))
         self.txt_totalpages.SetLabel(str(len(self.partitions[0][0])))
         self.txt_sizer.Layout()
         self.display_image(0, 0, 0)
+
+    def restore_session(self):
+        try:
+            state = pickle.load(open(self.stateP, 'rb'))
+            self.inv_map = state['inv_map']
+            self.boxes = state['boxes']
+        except:
+            return False
+        return True
+            
+    def save_session(self):
+        state = {'inv_map': self.inv_map,
+                 'boxes': self.boxes}
+        pickle.dump(state, open(self.stateP, 'wb'), pickle.HIGHEST_PROTOCOL)
 
     def do_tempmatch(self, box, img):
         """ Runs template matching on all images within the current
