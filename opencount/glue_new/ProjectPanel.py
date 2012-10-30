@@ -1,3 +1,8 @@
+import sys, os
+try:
+    import cPickle as pickle
+except:
+    import pickle
 import wx
 
 PROJ_FNAME = 'proj.p'
@@ -48,6 +53,14 @@ class ProjectPanel(wx.Panel):
         projects = load_projects(projdir)
         for proj in projects:
             self.add_project(proj)
+
+    def get_project(self):
+        """ Returns the Project instance of the selected project. """
+        idx = self.GetSelection()
+        if idx == wx.NOT_FOUND:
+            print "NONE SELECTED"
+            return None
+        return self.projects[idx]
 
     def add_project(proj):
         self.projects.append(proj)

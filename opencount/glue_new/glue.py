@@ -47,7 +47,7 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_NOTEBOOK_PAGE_CHANGED, self.onPageChange)
 
         self.notebook.ChangeSelection(0)
-        self.notebook.SendPageChangedEvent(0, 0)
+        self.notebook.SendPageChangedEvent(-1, 0)
 
     def init_ui(self):
         self.notebook = wx.Notebook(self)
@@ -87,6 +87,9 @@ class MainFrame(wx.Frame):
     def onPageChange(self, evt):
         old = evt.GetOldSelection()
         new = evt.GetSelection()
+
+        if old == MainFrame.PROJECT:
+            self.project = self.panel_projects.get_project()
         
         if new == MainFrame.PROJECT:
             self.panel_projects.start(PROJROOTDIR)
