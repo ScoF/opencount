@@ -14,7 +14,10 @@ class ConfigPanel(wx.Panel):
         # Instance vars
         self.parent = parent
         self.project = None
-        self.samplesdir = ""
+        self.voteddir = ""
+
+        # HOOKFN: Just a callback function to pass to Project.closehooks
+        self._hookfn = None
         
         # Set up widgets
         self.box_samples = wx.StaticBox(self, label="Samples")
@@ -70,8 +73,40 @@ class ConfigPanel(wx.Panel):
         self.SetSizer(self.sizer)
         self.Fit()
 
-    def start(self, project):
+    def start(self, project, stateP):
+        """
+        Input:
+            obj PROJECT:
+            str STATEP: Path of the state file.
+        """
         self.project = project
+        self.stateP = stateP
+        self._hookfn = lambda : self.save_session(stateP)
+        self.project.addCloseEvent(self._hookfn)
+        if self.restore_session(stateP=stateP):
+            return
+        self.voteddir = ''
+    def stop(self):
+        self.save_session(stateP=self.stateP)
+        self.project.removeCloseEvent(self._hookfn)
+        self.project.voteddir = self.voteddir
+        
+    def restore_session(self, stateP=None):
+        try:
+            state = pickle.load(open(stateP, 'rb'))
+            self.voteddir = state['voteddir']
+            self.box_samples.txt_samplespath.SetLabel(self.voteddir)
+            self.is_double_sided.SetValue(state['is_doublesided'])
+            self.is_straightened.SetValue(state['is_straightened'])
+        except:
+            traceback.print_exc()
+            return False
+        return True
+    def save_session(self, stateP=None):
+        state = {'voteddir': self.voteddir,
+                 'is_doublesided': self.is_double_sided.GetValue(),
+                 'is_straightened': self.is_straightened.GetValue()}
+        pickle.dump(state, open(stateP, 'wb'))
 
     def initDoubleSided(self):
         ds = DoubleSided(self, -1)
@@ -105,9 +140,9 @@ voted ballots directories first.")
         return res
 
     def set_samplepath(self, path):
-        self.samplesdir = os.path.abspath(path)
-        self.box_samples.txt_samplespath.SetLabel(self.wrap(self.samplesdir))
-        self.project.raw_samplesdir = self.samplesdir
+        self.voteddir = os.path.abspath(path)
+        self.box_samples.txt_samplespath.SetLabel(self.wrap(self.voteddir))
+        self.project.raw_samplesdir = self.voteddir
         Publisher().sendMessage("processing.register", data=self.project)
     def get_samplepath(self):
         return self.box_samples.txt_samplespath.GetLabelText().replace("\n", "")
@@ -145,13 +180,13 @@ voted ballots directories first.")
         self.upper_scroll.Clear()
         self.lower_scroll.Clear()
         num_files = 0
-        for dirpath, dirnames, filenames in os.walk(self.samplesdir):
+        for dirpath, dirnames, filenames in os.walk(self.voteddir):
             num_files += len(filenames)
         self.parent.Disable()
         pgauge = util_widgets.ProgressGauge(self, num_files, msg="Checking files...")
         pgauge.Show()
         thread = threading.Thread(target=sanity_check.sanity_check,
-                                  args=(self.samplesdir, self))
+                                  args=(self.voteddir, self))
         thread.start()
 
 class DoubleSided(wx.Frame):
@@ -205,7 +240,7 @@ class DoubleSided(wx.Frame):
                 res += [util.to_straightened_path(pathjoin(root, x), from_dir, to_dir) for x in files]
             return res
 
-        images = get(voteddir_raw, voteddir, self.parent.samplesdir)
+        images = get(voteddir_raw, voteddir, self.parent.voteddir)
         templates = get(blankdir_raw, blankdir, self.parent.templatesdir)
 
         if self.isalternating:

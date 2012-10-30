@@ -4,6 +4,8 @@ try:
 except ImportError as e:
     import pickle
 
+from os.path import join as pathjoin
+
 import wx
 from wx.lib.scrolledpanel import ScrolledPanel
 
@@ -94,11 +96,34 @@ class MainFrame(wx.Frame):
 
         if old == MainFrame.PROJECT:
             self.project = self.panel_projects.get_project()
-        
+        elif old == MainFrame.CONFIG:
+            self.panel_config.stop()
+        elif old == MainFrame.PARTITION:
+            pass
+        elif old == MainFrame.SELTARGETS:
+            pass
+        elif old == MainFrame.DEFINE_ATTRS:
+            pass
+        elif old == MainFrame.LABEL_ATTRS:
+            pass
+        elif old == MainFrame.LABEL_DIGATTRS:
+            pass
+        elif old == MainFrame.CORRECT_GROUPING:
+            pass
+        elif old == MainFrame.LABEL_CONTESTS:
+            pass
+        elif old == MainFrame.RUN:
+            pass
+        elif old == MainFrame.QUARANTINE:
+            pass
+        elif old == MainFrame.PROCESS:
+            pass
+
         if new == MainFrame.PROJECT:
             self.panel_projects.start(PROJROOTDIR)
         elif new == MainFrame.CONFIG:
-            self.panel_config.start(self.project)
+            self.panel_config.start(self.project, pathjoin(self.project.projdir_path,
+                                                           '_state_config.p'))
         elif new == MainFrame.PARTITION:
             self.panel_partition.start(self.project)
         elif new == MainFrame.SELTARGETS:

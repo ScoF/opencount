@@ -33,7 +33,9 @@ class PartitionMainPanel(wx.Panel):
 
     def start(self, proj):
         self.proj = proj
-        self.partitionpanel.start('../test-ballots-ek/orange_tiny/voted/')
+        self.partitionpanel.start(self.proj.voteddir)
+    def stop(self):
+        pass
         
 class PartitionPanel(ScrolledPanel):
     PARTITION_JOBID = util.GaugeID("PartitionJobId")
@@ -42,7 +44,6 @@ class PartitionPanel(ScrolledPanel):
         ScrolledPanel.__init__(self, parent, *args, **kwargs)
         
         self.voteddir = None
-
         self.init_ui()
 
     def init_ui(self):
