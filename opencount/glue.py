@@ -9,9 +9,9 @@ from wx.lib.scrolledpanel import ScrolledPanel
 
 sys.path.append('..')
 from tab_wrap import tab_wrap
-from ProjectPanel import ProjectPanel
-from ConfigPanel import ConfigPanel
-from PartitionPanel import PartitionPanel
+from projconfig_new.ProjectPanel import ProjectPanel
+from projconfig_new.ConfigPanel import ConfigPanel
+from partitions.PartitionPanel import PartitionPanel
 from specify_voting_targets.select_targets import SelectTargetsMainPanel
 from labelcontest.labelcontest import LabelContest
 from grouping.define_attributes import DefineAttributesPanel
