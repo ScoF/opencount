@@ -5,7 +5,11 @@ except:
     import pickle
 
 import wx
-from wx.lib.scrolled import ScrolledPanel
+from wx.lib.scrolledpanel import ScrolledPanel
+
+sys.path.append('..')
+import util
+import specify_voting_targets.select_targets as select_targets
 
 class DefineAttributesMainPanel(wx.Panel):
     def __init__(self, parent, *args, **kwargs):
@@ -27,15 +31,19 @@ class DefineAttributesMainPanel(wx.Panel):
         # 0.) Create the BALLOT_SIDES list of lists:
         #     [[imgP_i_side0, ...], [imgP_i_side1, ...]]
         ballot_sides = []
-        for ballotid, imgpaths in b2imgs[:5].iteritems():
+        for idx, (ballotid, imgpaths) in enumerate(b2imgs.iteritems()):
+            if idx > 5:
+                break
             for i, imgpath in enumerate(imgpaths):
-                if i > len(ballot_sides):
+                if i == len(ballot_sides):
                     ballot_sides.append([imgpath])
                 else:
                     ballot_sides[i].append(imgpath)
+
         self.defineattrs.start(ballot_sides, stateP)
 
     def stop(self):
+        self.defineattrs.save_session()
         self.proj.removeCloseEvent(self.defineattrs.save_session)
         self.export_results()
 
@@ -67,6 +75,7 @@ class DefineAttributesPanel(ScrolledPanel):
         self.sizer.Add(self.toolbar)
         self.sizer.Add(self.boxdraw, proportion=1, flag=wx.EXPAND)
 
+        self.SetSizer(self.sizer)
         self.Layout()
         self.SetupScrolling()
 
@@ -83,7 +92,7 @@ class DefineAttributesPanel(ScrolledPanel):
             self.boxes_map = {}
         self.cur_i = 0
         self.cur_side = 0
-        self.display_image(self.cur_i)
+        self.display_image(self.cur_side, self.cur_i)
 
     def stop(self):
         pass
@@ -97,6 +106,10 @@ class DefineAttributesPanel(ScrolledPanel):
             return False
         return True
     def save_session(self):
+        # 0.) Add new boxes from self.BOXDRAW to self.BOXES_MAP, if any
+        for box in self.boxdraw.boxes:
+            if box not in self.boxes_map.get(self.cur_side, []):
+                self.boxes_map.setdefault(self.cur_side, []).append(box)
         state = {'boxes_map': self.boxes_map,
                  'ballot_sides': self.ballot_sides}
         pickle.dump(state, open(self.stateP, 'wb'), pickle.HIGHEST_PROTOCOL)

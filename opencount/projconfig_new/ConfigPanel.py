@@ -7,6 +7,10 @@ except:
 import wx
 from wx.lib.pubsub import Publisher
 
+sys.path.append('..')
+
+import util
+
 class ConfigPanel(wx.Panel):
     def __init__(self, parent, *args, **kwargs):
         wx.Panel.__init__(self, parent, style=wx.SIMPLE_BORDER, *args, **kwargs)
@@ -86,10 +90,39 @@ class ConfigPanel(wx.Panel):
         if self.restore_session(stateP=stateP):
             return
         self.voteddir = ''
+
     def stop(self):
         self.save_session(stateP=self.stateP)
         self.project.removeCloseEvent(self._hookfn)
         self.project.voteddir = self.voteddir
+        self.export_results()
+        
+    def export_results(self):
+        def separate_imgs(voteddir):
+            """ Separates images into sets of Ballots.
+            Input:
+                str VOTEDDIR: Root directory of voted ballots.
+            Output:
+                list BALLOTS. [Ballot0, Ballot1, ...], where each Ballot_i
+                    is a list of [imgpath_side0, imgpath_side1, ...].
+            """
+            ballots = []
+            for dirpath, dirnames, filenames in os.walk(voteddir):
+                for imgname in [f for f in filenames if util.is_image_ext(f)]:
+                    imgpath = pathjoin(dirpath, imgname)
+                    # TODO: Generalize to multi-page.
+                    ballots.append([imgpath])
+            return ballots
+        # BALLOT_TO_IMAGES: maps {int ballotID: [imgpath_side0, imgpath_side1, ...]}
+        ballot_to_images = {}
+        image_to_ballot = {} # maps {imgpath: int ballotID}
+        for id, imgpaths in enumerate(separate_imgs(self.voteddir)):
+            ballot_to_images[id] = imgpaths
+            for imgpath in imgpaths:
+                image_to_ballot[imgpath] = id
+        pickle.dump(ballot_to_images, open(self.project.ballot_to_images, 'wb'), pickle.HIGHEST_PROTOCOL)
+        pickle.dump(image_to_ballot, open(self.project.image_to_ballot, 'wb'), pickle.HIGHEST_PROTOCOL)
+        
         
     def restore_session(self, stateP=None):
         try:

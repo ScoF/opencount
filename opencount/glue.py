@@ -16,7 +16,7 @@ from projconfig_new.ConfigPanel import ConfigPanel
 from partitions.PartitionPanel import PartitionMainPanel
 from specify_voting_targets.select_targets import SelectTargetsMainPanel
 from labelcontest.labelcontest import LabelContest
-from grouping.define_attributes import DefineAttributesPanel
+from grouping.define_attributes_new import DefineAttributesMainPanel
 from grouping.select_attributes import SelectAttributesMasterPanel
 from digits_ui.digits_ui import LabelDigitsPanel
 from grouping.verify_grouping import GroupingMasterPanel
@@ -64,8 +64,7 @@ class MainFrame(wx.Frame):
         self.panel_config = ConfigPanel(self.notebook)
         self.panel_partition = PartitionMainPanel(self.notebook)
         self.panel_seltargets = SelectTargetsMainPanel(self.notebook)
-        self.panel_define_attrs = DefineAttributesPanel(self.notebook)
-        self.panel_define_attrs.unsubscribe_pubsubs()
+        self.panel_define_attrs = DefineAttributesMainPanel(self.notebook)
         self.panel_label_attrs = SelectAttributesMasterPanel(self.notebook)
         self.panel_label_digitattrs = tab_wrap(LabelDigitsPanel)(self.notebook)
         self.panel_correct_grouping = GroupingMasterPanel(self.notebook)
@@ -103,7 +102,7 @@ class MainFrame(wx.Frame):
         elif old == MainFrame.SELTARGETS:
             self.panel_seltargets.stop()
         elif old == MainFrame.DEFINE_ATTRS:
-            pass
+            self.panel_defineattrs.stop()
         elif old == MainFrame.LABEL_ATTRS:
             pass
         elif old == MainFrame.LABEL_DIGATTRS:
@@ -131,7 +130,8 @@ class MainFrame(wx.Frame):
             self.panel_seltargets.start(self.project, pathjoin(self.project.projdir_path,
                                                                '_state_seltargets.p'))
         elif new == MainFrame.DEFINE_ATTRS:
-            pass
+            self.panel_define_attrs.start(self.project, pathjoin(self.project.projdir_path,
+                                                                 '_state_defineattrs.p'))
         elif new == MainFrame.LABEL_ATTRS:
             pass
         elif new == MainFrame.LABEL_DIGATTRS:
