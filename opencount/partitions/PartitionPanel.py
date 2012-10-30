@@ -31,11 +31,12 @@ class PartitionMainPanel(wx.Panel):
         self.SetSizer(self.sizer)
         self.Layout()
 
-    def start(self, proj):
+    def start(self, proj, stateP):
         self.proj = proj
-        self.partitionpanel.start(self.proj.voteddir)
+        self.partitionpanel.start(self.proj.voteddir, stateP)
+        self.proj.addCloseEvent(self.partitionpanel.save_session)
     def stop(self):
-        pass
+        self.proj.removeCloseEvent(self.partitionpanel.save_session)
         
 class PartitionPanel(ScrolledPanel):
     PARTITION_JOBID = util.GaugeID("PartitionJobId")
@@ -44,6 +45,8 @@ class PartitionPanel(ScrolledPanel):
         ScrolledPanel.__init__(self, parent, *args, **kwargs)
         
         self.voteddir = None
+        self.partitioning = None
+
         self.init_ui()
 
     def init_ui(self):
@@ -52,24 +55,48 @@ class PartitionPanel(ScrolledPanel):
         sizer0 = wx.BoxSizer(wx.HORIZONTAL)
         sizer0.AddMany([(txt0,), (self.vendor_dropdown,)])
 
+        self.sizer_stats = wx.BoxSizer(wx.HORIZONTAL)
+        txt1 = wx.StaticText(self, label="Number of Partitions: ")
+        self.num_partitions_txt = wx.StaticText(self)
+        self.sizer_stats.AddMany([(txt1,), (self.num_partitions_txt,)])
+        self.sizer_stats.ShowItems(False)
+
         btn_run = wx.Button(self, label="Run Partitioning...")
         btn_run.Bind(wx.EVT_BUTTON, self.onButton_run)
         btn_sizer = wx.BoxSizer(wx.HORIZONTAL)
         btn_sizer.AddMany([(btn_run,)])
         
         self.sizer = wx.BoxSizer(wx.VERTICAL)
-        self.sizer.AddMany([(sizer0,), (btn_sizer,)])
+        self.sizer.AddMany([(sizer0,), (self.sizer_stats,), (btn_sizer,)])
         self.SetSizer(self.sizer)
         self.Layout()
         self.SetupScrolling()
 
-    def start(self, voteddir):
+    def start(self, voteddir, stateP='_state_partition.p'):
         """ 
         Input:
             str VOTEDDIR: Root directory of voted ballots.
         """
         self.voteddir = voteddir
+        self.stateP = stateP
+        self.restore_session()
         
+    def stop(self):
+        self.save_session()
+
+    def restore_session(self):
+        try:
+            state = pickle.load(open(self.stateP, 'rb'))
+            self.voteddir = state['voteddir']
+            self.partitioning = state['partitioning']
+        except:
+            return False
+        return True
+    def save_session(self):
+        state = {'voteddir': self.voteddir,
+                 'partitioning': self.partitioning}
+        pickle.dump(open(self.stateP, 'wb'))
+
     def onButton_run(self, evt):
         class PartitionThread(threading.Thread):
             def __init__(self, voteddir, vendor, callback, jobid, queue, tlisten, *args, **kwargs):
@@ -129,6 +156,10 @@ class PartitionPanel(ScrolledPanel):
     def on_partitiondone(self, partitioning):
         print "...Partitioning Done..."
         print partitioning
+        self.partitioning = partitioning
+        self.num_partitions_txt.SetLabel(str(len(partitioning)))
+        self.sizer_stats.ShowItems(True)
+        self.Layout()
 
 
         
