@@ -1,4 +1,4 @@
-import sys, os, pdb, traceback, threading
+import sys, os, pdb, traceback, threading, Queue
 try:
     import cPickle as pickle
 except:
@@ -10,7 +10,9 @@ from wx.lib.scrolledpanel import ScrolledPanel
 
 sys.path.append('..')
 
-BALLOT_FMTS = ("Diebold", "Hart", "Sequoia")
+import util, barcode
+
+BALLOT_VENDORS = ("Diebold", "Hart", "Sequoia")
 
 class PartitionMainPanel(wx.Panel):
     def __init__(self, parent, *args, **kwargs):
@@ -67,20 +69,47 @@ class PartitionPanel(ScrolledPanel):
         
     def onButton_run(self, evt):
         class PartitionThread(threading.Thread):
-            def __init__(self, voteddir, vendor, callback, jobid, *args, **kwargs):
+            def __init__(self, voteddir, vendor, callback, jobid, queue, tlisten, *args, **kwargs):
                 threading.Thread.__init__(self, *args, **kwargs)
                 self.voteddir = voteddir
                 self.vendor = vendor
                 self.callback = callback
                 self.jobid = jobid
+                self.queue = queue
+                self.tlisten = tlisten
             def run(self):
-                partitioning = barcode.partition_imgs(self.voteddir, vendor=vendor)
-                
+                partitioning = barcode.partition_imgs(self.voteddir, vendor=vendor, queue=queue)
                 wx.CallAfter(self.callback, partitioning)
-                
+                self.tlisten.stop()
+        class ListenThread(threading.Thread):
+            def __init__(self, queue, jobid, *args, **kwargs):
+                threading.Thread.__init__(self, *args, **kwargs)
+                self.queue = queue
+                self.jobid = jobid
+                self._stop = threading.Event()
+            def stop(self):
+                print "...ListenThread: Someone called my stop()..."
+                self._stop.set()
+            def is_stopped(self):
+                return self._stop.isSet()
+            def run(self):
+                while True:
+                    if self.is_stopped():
+                        print "...ListenThread: Stopping."
+                        return
+                    try:
+                        val = self.queue.get(block=True, timeout=1)
+                        if val == True:
+                            wx.CallAfter(Publisher().sendMessage, "signals.MyGauge.tick", (self.jobid,))
+                    except:
+                        pass
+
         vendor = self.vendor_dropdown.GetValue()
-        
-        t = PartitionThread(self.voteddir, vendor, self.on_partitiondone, self.PARTITION_JOBID)
+        queue = Queue.Queue()
+        tlisten = ListenThread(queue, self.PARTITION_JOBID)
+
+        t = PartitionThread(self.voteddir, vendor, self.on_partitiondone,
+                            self.PARTITION_JOBID, queue, tlisten)
         numtasks = 100
         gauge = util.MyGauge(self, numtasks, thread=t, msg="Running Partitioning...",
                              job_id=self.PARTITION_JOBID)
@@ -88,7 +117,8 @@ class PartitionPanel(ScrolledPanel):
         gauge.Show()
         
     def on_partitiondone(self, partitioning):
-        pass
+        print "...Partitioning Done..."
+
 
         
         

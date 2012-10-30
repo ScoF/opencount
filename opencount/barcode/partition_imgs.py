@@ -35,7 +35,7 @@ decode_fns = {'hart': hart.decode}
 #     50-imgs (1 proc):
 #         8.007 s     (0.08 s per ballot)
 
-def partition_imgs(imgpaths, vendor="hart"):
+def partition_imgs(imgpaths, vendor="hart", queue=None):
     """ Partition the images in IMGPATHS, assuming that the images
     are from the VENDOR.
     Input:
@@ -58,6 +58,8 @@ def partition_imgs(imgpaths, vendor="hart"):
     for imgpath in imgpaths:
         try:
             barcodes, isflip, bbs = decode(imgpath, **kwargs)
+            if queue != None:
+                queue.put(True)
         except:
             print "Errored on:", imgpath
             grouping.setdefault((None,), []).append((imgpath, None, None))
@@ -66,9 +68,16 @@ def partition_imgs(imgpaths, vendor="hart"):
         
     return grouping
 
-def _do_partition_imgs(imgpaths, (vendor,)):
+def partition_imgs_par(imgpaths, vendor="hart", queue=None):
+    grouping = partask.do_partask(_do_partition_imgs, 
+                                  imgpaths,
+                                  _args=(vendor, queue),
+                                  combfn="dict", 
+                                  N=None)
+
+def _do_partition_imgs(imgpaths, (vendor, queue)):
     try:
-        return partition_imgs(imgpaths, vendor=vendor)
+        return partition_imgs(imgpaths, vendor=vendor, queue=queue)
     except Exception as e:
         traceback.print_exc()
         raise e

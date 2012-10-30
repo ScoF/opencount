@@ -5,6 +5,7 @@ try:
 except:
     import pickle
 import wx
+from wx.lib.pubsub import Publisher
 
 class ConfigPanel(wx.Panel):
     def __init__(self, parent, *args, **kwargs):
@@ -107,7 +108,6 @@ voted ballots directories first.")
         self.samplesdir = os.path.abspath(path)
         self.box_samples.txt_samplespath.SetLabel(self.wrap(self.samplesdir))
         self.project.raw_samplesdir = self.samplesdir
-        Publisher().sendMessage("broadcast.projupdate")
         Publisher().sendMessage("processing.register", data=self.project)
     def get_samplepath(self):
         return self.box_samples.txt_samplespath.GetLabelText().replace("\n", "")
@@ -138,8 +138,6 @@ voted ballots directories first.")
         if result == wx.ID_OK:
             dirpath = dlg.GetPath()
             self.set_samplepath(dirpath)
-            if self.get_templatepath() != '' and os.path.exists(self.get_samplepath()):
-                Publisher().sendMessage("broadcast.can_proceed")
                 
     def onButton_runsanitycheck(self, evt):
         TIMER.stop_task(('user', MainFrame.map_pages[MainFrame.CONFIG]['user']))
