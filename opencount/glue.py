@@ -139,7 +139,13 @@ class MainFrame(wx.Frame):
         elif new == MainFrame.CORRECT_GROUPING:
             pass
         elif new == MainFrame.LABEL_CONTESTS:
-            pass
+            """ Requires:
+                proj.target_locs_dir -- Location of targets
+                proj.patch_loc_dir -- For language, and *something* else.
+            """
+            self.panel_label_contests.proj = self.project
+            self.panel_label_contests.start(self.GetSize())
+            self.SendSizeEvent()
         elif new == MainFrame.RUN:
             pass
         elif new == MainFrame.QUARANTINE:
