@@ -14,6 +14,7 @@ from wx.lib.scrolledpanel import ScrolledPanel
 
 import util_gui, util
 import grouping.partask as partask
+import labelcontest.group_contests as group_contests
 
 class SelectTargetsMainPanel(wx.Panel):
     def __init__(self, parent, *args, **kwargs):
@@ -29,7 +30,7 @@ class SelectTargetsMainPanel(wx.Panel):
         self.SetSizer(self.sizer)
         self.Layout()
 
-    def start(self, proj, stateP):
+    def start(self, proj, stateP, ocrtmpdir):
         self.proj = proj
         # PARTITIONS: dict {(barcode_i, ...): [(imgpath_i, isflip_i, bbs_i), ...]}
         partitions_map = pickle.load(open(pathjoin(proj.projdir_path,
@@ -42,7 +43,7 @@ class SelectTargetsMainPanel(wx.Panel):
             partitions.append(partition)
 
         self.proj.addCloseEvent(self.seltargets_panel.save_session)
-        self.seltargets_panel.start(partitions, stateP)
+        self.seltargets_panel.start(partitions, stateP, ocrtmpdir)
 
     def stop(self):
         self.proj.removeCloseEvent(self.seltargets_panel.save_session)
@@ -98,7 +99,24 @@ class SelectTargetsMainPanel(wx.Panel):
         Output:
             dict ASSOCS. {int contest_id, [ContestBox, [TargetBox_i, ...]]}
         """
-        return {}
+        def containing_box(box, boxes):
+            """ Returns the box in BOXES that contains BOX. """
+            for i, otherbox in enumerate(boxes):
+                if (box.x1 >= otherbox.x1 and box.y1 >= otherbox.y1
+                        and box.x2 <= otherbox.x2 and box.y2 <= otherbox.y2):
+                    return i, otherbox
+            return None
+        assocs = {}
+        contests = [b for b in boxes if isinstance(b, ContestBox)]
+        targets = [b for b in boxes if isinstance(b, TargetBox)]
+        pdb.set_trace()
+        for t in targets:
+            id, c = containing_box(t, contests)
+            if id in assocs:
+                assocs[id][1].append(t)
+            else:
+                assocs[id] = [c, []]
+        return assocs
 
 class SelectTargetsPanel(ScrolledPanel):
     """ A widget that allows you to find voting targets on N ballot
@@ -190,17 +208,18 @@ this partition.")
 
         self.SetSizer(self.sizer)
 
-    def start(self, partitions, stateP):
+    def start(self, partitions, stateP, ocrtempdir):
         """
         Input:
             list PARTITIONS: A list of lists of lists, encoding partition+ballot+side(s):
                 [[[imgpath_i0_front, ...], ...], [[imgpath_i1_front, ...], ...], ...]
-                
             str STATEP: Path of the statefile.
+            str OCRTEMPDIR: Used for InferContestRegion.
         """
         self.partitions = partitions
         print 'partitions: ', partitions
         self.stateP = stateP
+        self.ocrtempdir = ocrtempdir
         if not self.restore_session():
             # 0.) Populate my self.INV_MAP
             self.inv_map = {}
@@ -419,6 +438,39 @@ this partition.")
     def zoomout(self, amt=0.1):
         self.imagepanel.zoomout(amt=amt)
 
+    def infercontests(self):
+        imgpaths_exs = [] # list of [imgpath_i, ...]
+        for partition_idx, imgpaths_sides in enumerate(self.partitions):
+            for imgpaths in imgpaths_sides:
+                # Arbitrarily choose the first one
+                imgpaths_exs.append(imgpaths[0])
+                break
+        # Let i=target #, j=ballot style, k=contest idx:
+        targets = [] # list of [[[box_ijk, ...], [box_ijk+1, ...], ...], ...]
+        for partition_idx, boxes_sides in self.boxes.iteritems():
+            for boxes in boxes_sides:
+                style_boxes = [] # [[contest_i, ...], ...]
+                for box in boxes:
+                    # InferContests throws out the pre-determined contest
+                    # grouping, so just stick each target in its own
+                    # 'contest'
+                    style_boxes.append([[box.x1, box.y1, box.x2, box.y2]])
+                targets.append(style_boxes)
+        #bboxes = dict(zip(imgpaths, group_contests.find_contests(self.ocrtempdir, imgpaths_exs, targets)))
+        # CONTEST_RESULTS: [[box_i, ...], ...], each subtuple_i is for imgpath_i.
+        contest_results = group_contests.find_contests(self.ocrtempdir, imgpaths_exs, targets)
+        # 1.) Update my self.BOXES
+        for i, contests in enumerate(contest_results):
+            partition_idx, j, page = self.inv_map[imgpaths_exs[i]]
+            # Remove previous contest boxes
+            justtargets = [b for b in self.boxes[partition_idx][page] if not isinstance(b, ContestBox)]
+            contest_boxes = []
+            for (x1,y1,x2,y2) in contests:
+                contest_boxes.append(ContestBox(x1,y1,x2,y2))
+            self.boxes[partition_idx][page] = justtargets+contest_boxes
+        # 2.) Update self.IMAGEPANEL.BOXES (i.e. the UI)
+        self.imagepanel.set_boxes(self.boxes[self.cur_i][self.cur_page])
+
 class Toolbar(wx.Panel):
     def __init__(self, parent, *args, **kwargs):
         wx.Panel.__init__(self, parent, *args, **kwargs)
@@ -433,12 +485,13 @@ class Toolbar(wx.Panel):
         self.btn_modify = wx.Button(self, label="Modify...")
         self.btn_zoomin = wx.Button(self, label="Zoom In...")
         self.btn_zoomout = wx.Button(self, label="Zoom Out...")
+        self.btn_infercontests = wx.Button(self, label="Infer Contest Regions..")
         self.btn_opts = wx.Button(self, label="Options...")
         self.sizer = wx.BoxSizer(wx.VERTICAL)
         btn_sizer = wx.BoxSizer(wx.HORIZONTAL)
         btn_sizer.AddMany([(self.btn_addtarget,), (self.btn_modify,),
                            (self.btn_zoomin,), (self.btn_zoomout,),
-                           (self.btn_opts,)])
+                           (self.btn_infercontests,), (self.btn_opts,)])
         self.sizer.Add(btn_sizer)
         self.SetSizer(self.sizer)
 
@@ -447,6 +500,7 @@ class Toolbar(wx.Panel):
         self.btn_modify.Bind(wx.EVT_BUTTON, lambda evt: self.setmode(BoxDrawPanel.M_IDLE))
         self.btn_zoomin.Bind(wx.EVT_BUTTON, lambda evt: self.parent.zoomin())
         self.btn_zoomout.Bind(wx.EVT_BUTTON, lambda evt: self.parent.zoomout())
+        self.btn_infercontests.Bind(wx.EVT_BUTTON, lambda evt: self.parent.infercontests())
         self.btn_opts.Bind(wx.EVT_BUTTON, self.onButton_opts)
     def setmode(self, mode_m):
         self.parent.imagepanel.set_mode_m(mode_m)

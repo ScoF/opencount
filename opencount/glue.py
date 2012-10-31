@@ -128,7 +128,8 @@ class MainFrame(wx.Frame):
                                                               '_state_partition.p'))
         elif new == MainFrame.SELTARGETS:
             self.panel_seltargets.start(self.project, pathjoin(self.project.projdir_path,
-                                                               '_state_seltargets.p'))
+                                                               '_state_seltargets.p'),
+                                        self.project.ocr_tmp_dir)
         elif new == MainFrame.DEFINE_ATTRS:
             self.panel_define_attrs.start(self.project, pathjoin(self.project.projdir_path,
                                                                  '_state_defineattrs.p'))
