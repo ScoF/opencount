@@ -623,7 +623,7 @@ def extract_targets(partitions_map, b2imgs, img2b,
         bool WORKED. True if everything ran correctly, False o.w.
     """
     if stopped == None:
-        stopped = lambda : return False
+        stopped = lambda : False
     targetDiffDir = targetDir + '_diffs'
     # JOBS: [[blankpaths_i, bbs_i, votedpaths_i, targetDir, targetDiffDir, targetMetaDir, imgMetaDir], ...]
     jobs = []

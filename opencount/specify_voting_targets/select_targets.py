@@ -34,7 +34,7 @@ class SelectTargetsMainPanel(wx.Panel):
         self.proj = proj
         # PARTITIONS: dict {(barcode_i, ...): [(imgpath_i, isflip_i, bbs_i), ...]}
         partitions_map = pickle.load(open(pathjoin(proj.projdir_path,
-                                                   proj.partitions), 'rb'))
+                                                   proj.partitions_map), 'rb'))
         # 0.) Munge PARTITIONS_MAP to list of lists of lists
         partitions = []
         for partitionID, group in partitions_map.iteritems():
@@ -109,7 +109,6 @@ class SelectTargetsMainPanel(wx.Panel):
         assocs = {}
         contests = [b for b in boxes if isinstance(b, ContestBox)]
         targets = [b for b in boxes if isinstance(b, TargetBox)]
-        pdb.set_trace()
         for t in targets:
             id, c = containing_box(t, contests)
             if id in assocs:
