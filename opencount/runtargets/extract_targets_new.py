@@ -3,6 +3,7 @@ try:
     import cPickle as pickle
 except:
     import pickle
+from os.path import join as pathjoin
 
 import wx
 from wx.lib.pubsub import Publisher
@@ -65,7 +66,8 @@ class RunThread(threading.Thread):
                                                    self.proj.partitions_map), 'rb'))
         b2imgs = pickle.load(open(self.proj.ballot_to_images, 'rb'))
         img2b = pickle.load(open(self.proj.image_to_ballot, 'rb'))
-        res = doExtract.extract_targets(partitions_map, b2imgs, img2b, 
+        bal2page = pickle.load(open(self.proj.ballot_to_page, 'rb'))
+        res = doExtract.extract_targets(partitions_map, b2imgs, img2b, bal2page,
                                         self.proj.extracted_dir,
                                         self.proj.extracted_metadata,
                                         self.proj.ballot_metadata,

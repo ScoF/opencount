@@ -516,7 +516,7 @@ def convertImagesSingleMAP(bal2imgs, tpl2imgs, bal2tpl, img2bal, csvPattern,
         quarantineCheckMAP(jobs,targetDiffDir,quarantineCvr,project, img2bal, imageMetaDir=imageMetaDir)
     return worked
 
-def fix_ballot_order(balL, proj):
+def fix_ballot_order(balL, proj=None, bal2page=None):
     """ Using ballot_to_page, correct the image ordering (i.e. 'side0',
     'side1', ...
     Input:
@@ -526,9 +526,10 @@ def fix_ballot_order(balL, proj):
         [side0_path, side1_path, ...]
     """
     assert issubclass(type(balL), list)
-    bal2page = pickle.load(open(os.path.join(proj.projdir_path,
-                                             proj.ballot_to_page),
-                           'rb'))
+    if bal2page == None:
+        bal2page = pickle.load(open(os.path.join(proj.projdir_path,
+                                                 proj.ballot_to_page),
+                               'rb'))
     out = [None]*len(balL)
     for imgpath in balL:
         if imgpath not in bal2page:
@@ -604,15 +605,16 @@ def convertImagesMultiMAP(bal2imgs, tpl2imgs, bal2tpl, img2bal, csvPattern, targ
         quarantineCheckMAP(jobs,targetDiffDir,quarantineCvr,project, img2bal, imageMetaDir=imageMetaDir)
     return worked
 
-def extract_targets(partitions_map, b2imgs, img2b, 
+def extract_targets(partitions_map, b2imgs, img2b, bal2page,
                     targetDir, targetMetaDir, imageMetaDir,
                     quarantineCvr, stopped=None):
     """ Target Extraction routine, for the new blankballot-less pipeline.
     Input:
-        dict PARTITIONS_MAP: maps {partitionID: (imgpath_i, ...)}, where each
+        dict PARTITIONS_MAP: maps {partitionID: [(imgpath_i, isflip, bbs_i), ...)}, where each
             IMGPATH_i is the first page of each Ballot. 
         dict B2IMGS: maps {int ballotID: (imgpath_i, ...)}
         dict IMG2B: maps {imgpath: int ballotID}
+        dict BAL2PAGE: maps {imgpath: int page}
         str TARGETDIR: Dir to store extracted target patches
         str TARGETMETADIR: Dir to store metadata for each target
         str IMAGEMETADIR: Dir to store metadata for each ballot
@@ -629,13 +631,13 @@ def extract_targets(partitions_map, b2imgs, img2b,
     jobs = []
     # 0.) Create 'blank' ballots
     blankpaths = []
-    for partitionID, imgpaths in partitions_map.iteritems():
-        exmpl = imgpaths[0]
+    for partitionID, items in partitions_map.iteritems():
+        exmpl = items[0][0]
         ballot_imgpaths = b2imgs[img2b[exmpl]]
         blankpaths.append(ballot_imgpaths)
     # 1.) Create jobs
     for ballotID, imgpaths in b2imgs.iteritems():
-        imgpaths_ordered = fix_ballot_order(imgpaths)
+        imgpaths_ordered = fix_ballot_order(imgpaths, bal2page=bal2page)
         job = [blankpaths, bbs, imgpaths_ordered, targetDir, 
                targetDiffDir, targetMetaDir, imageMetaDir]
         jobs.append(job)
