@@ -996,6 +996,11 @@ class Box(object):
         self.y2 = int(round(self.y2*scale))
     def copy(self):
         return Box(self.x1, self.y1, self.x2, self.y2)
+    def get_draw_opts(self):
+        """ Given the state of me, return the color+line-width for the
+        DC to use.
+        """
+        return ("Green", 2)
 class TargetBox(Box):
     def __init__(self, x1, y1, x2, y2, is_sel=False):
         Box.__init__(self, x1, y1, x2, y2)
