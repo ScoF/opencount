@@ -20,7 +20,7 @@ from grouping.define_attributes_new import DefineAttributesMainPanel
 from grouping.select_attributes import SelectAttributesMasterPanel
 from digits_ui.digits_ui import LabelDigitsPanel
 from grouping.verify_grouping import GroupingMasterPanel
-from runtargets.runtargets import RunTargets
+from runtargets.extract_targets_new import TargetExtractPanel
 from threshold.threshold import ThresholdPanel
 from quarantine.quarantinepanel import QuarantinePanel
 from post_processing.postprocess import ResultsPanel
@@ -37,7 +37,7 @@ class MainFrame(wx.Frame):
     LABEL_DIGATTRS = 6
     CORRECT_GROUPING = 7
     LABEL_CONTESTS = 8
-    RUN = 9
+    TARGET_EXTRACT = 9
     QUARANTINE = 10
     PROCESS = 11
 
@@ -69,7 +69,7 @@ class MainFrame(wx.Frame):
         self.panel_label_digitattrs = tab_wrap(LabelDigitsPanel)(self.notebook)
         self.panel_correct_grouping = GroupingMasterPanel(self.notebook)
         self.panel_label_contests = tab_wrap(LabelContest)(self.notebook)
-        self.panel_run = RunTargets(self.notebook)
+        self.panel_target_extract = TargetExtractPanel(self.notebook)
         self.panel_set_threshold = tab_wrap(ThresholdPanel)(self.notebook)
         self.panel_quarantine = QuarantinePanel(self.notebook)
         self.panel_process = ResultsPanel(self.notebook)
@@ -82,7 +82,7 @@ class MainFrame(wx.Frame):
                       (self.panel_label_digitattrs, "Label Digit-Based Attributes"),
                       (self.panel_label_contests, "Label Contests"),
                       (self.panel_correct_grouping, "Correct Grouping"),
-                      (self.panel_run, "Extract Targets"),
+                      (self.panel_target_extract, "Extract Targets"),
                       (self.panel_set_threshold, "Set Threshold"),
                       (self.panel_quarantine, "Process Quarantine"),
                       (self.panel_process, "Results")]
@@ -111,7 +111,7 @@ class MainFrame(wx.Frame):
             pass
         elif old == MainFrame.LABEL_CONTESTS:
             pass
-        elif old == MainFrame.RUN:
+        elif old == MainFrame.TARGET_EXTRACT:
             pass
         elif old == MainFrame.QUARANTINE:
             pass
@@ -147,8 +147,8 @@ class MainFrame(wx.Frame):
             self.panel_label_contests.proj = self.project
             self.panel_label_contests.start(self.GetSize())
             self.SendSizeEvent()
-        elif new == MainFrame.RUN:
-            pass
+        elif new == MainFrame.TARGET_EXTRACT:
+            self.panel_target_extract.start(self.project)
         elif new == MainFrame.QUARANTINE:
             pass
         elif new == MainFrame.PROCESS:
