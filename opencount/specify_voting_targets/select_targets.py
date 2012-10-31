@@ -78,7 +78,7 @@ class SelectTargetsMainPanel(wx.Panel):
                             'height': contestbox.y2-contestbox.y1,
                             'label': '', 'is_contest': 1, 
                             'contest_id': contest_id}
-                    rows_contest.append(rowC)
+                    rows_contests.append(rowC)
                     id_c += 1
                     for box in targetboxes:
                         rowT = {'imgpath': imgpath, 'id': id_t,
