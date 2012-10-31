@@ -10,6 +10,8 @@ from wx.lib.scrolledpanel import ScrolledPanel
 sys.path.append('..')
 import util
 import specify_voting_targets.select_targets as select_targets
+import grouping.common as common
+import grouping.cust_attrs as cust_attrs
 
 class DefineAttributesMainPanel(wx.Panel):
     def __init__(self, parent, *args, **kwargs):
@@ -136,7 +138,20 @@ class DefineAttributesPanel(ScrolledPanel):
         wximg = wx.Image(imgpath, wx.BITMAP_TYPE_ANY)
         self.boxdraw.set_image(wximg)
         self.boxdraw.set_boxes(boxes)
-        
+    
+    def get_attrtypes(self):
+        """ Returns a list of all attrtypes currently created so far. """
+        attrtypes = []
+        for box in sum(self.boxes_map.values(), []):
+            attrtypestr = common.get_attrtype_str(box.attrtypes)
+            if attrtypestr not in attrtypes:
+                attrtypes.append(attrtypestr)
+        for box in self.boxdraw.boxes:
+            attrtypestr = common.get_attrtype_str(box.attrtypes)
+            if attrtypestr not in attrtypes:
+                attrtypes.append(attrtypestr)
+        return attrtypes
+    
     def next_side(self):
         pass
     def prev_side(self):
@@ -157,8 +172,13 @@ class ToolBar(wx.Panel):
         btn_addattr.Bind(wx.EVT_BUTTON, self.onButton_addattr)
         btn_modify = wx.Button(self, label="Modify")
         btn_modify.Bind(wx.EVT_BUTTON, self.onButton_modify)
+        btn_addcustomattr = wx.Button(self, label="Add Custom Attribute...")
+        btn_addcustomattr.Bind(wx.EVT_BUTTON, self.onButton_addcustomattr)
+        btn_viewcustomattrs = wx.Button(self, label="View Custom Attributes...")
+        btn_viewcustomattrs.Bind(wx.EVT_BUTTON, self.onButton_viewcustomattrs)
         btn_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        btn_sizer.AddMany([(btn_addattr,), (btn_modify,)])
+        btn_sizer.AddMany([(btn_addattr,), (btn_modify,), (btn_addcustomattr,),
+                           (btn_viewcustomattrs,)])
 
         self.sizer = wx.BoxSizer(wx.VERTICAL)
         self.sizer.Add(btn_sizer)
@@ -171,6 +191,112 @@ class ToolBar(wx.Panel):
     def onButton_modify(self, evt):
         boxdrawpanel = self.GetParent().boxdraw
         boxdrawpanel.set_mode_m(boxdrawpanel.M_IDLE)
+    def onButton_addcustomattr(self, evt):
+        SPREADSHEET = 'SpreadSheet'
+        FILENAME = 'Filename'
+        choice_dlg = common.SingleChoiceDialog(self, message="Which modality \
+will the Custom Attribute use?", 
+                                               choices=[SPREADSHEET, FILENAME])
+        status = choice_dlg.ShowModal()
+        if status == wx.ID_CANCEL:
+            return
+        choice = choice_dlg.result
+        if choice == None:
+            return
+        elif choice == SPREADSHEET:
+            attrtypes = self.GetParent().get_attrtypes()
+            if len(attrtypes) == 0:
+                print "No attrtypes created yet, can't do this."
+                d = wx.MessageDialog(self, message="You must first create \
+    Ballot Attributes, before creating Custom Ballot Attributes.")
+                d.ShowModal()
+                return
+            dlg = SpreadSheetAttrDialog(self, attrtypes)
+            status = dlg.ShowModal()
+            if status == wx.ID_CANCEL:
+                return
+            attrname = dlg.results[0]
+            spreadsheetpath = dlg.path
+            attrin = dlg.combobox.GetValue()
+            print "attrname:", attrname
+            print "Spreadsheet path:", spreadsheetpath
+            print "Attrin:", attrin
+            if not attrname:
+                d = wx.MessageDialog(self, message="You must choose a valid \
+attribute name.")
+                d.ShowModal()
+                return
+            elif not spreadsheetpath:
+                d = wx.MessageDialog(self, message="You must choose the \
+spreadsheet path.")
+                d.ShowModal()
+                return
+            elif not attrin:
+                d = wx.MessageDialog(self, message="You must choose an \
+'input' attribute type.")
+                d.ShowModal()
+                return
+            proj = self.GetParent().GetParent().proj
+            custom_attrs = cust_attrs.load_custom_attrs(proj)
+            if cust_attrs.custattr_exists(proj, attrname):
+                d = wx.MessageDialog(self, message="The attrname {0} already \
+exists as a Custom Attribute.".format(attrname))
+                d.ShowModal()
+                return
+            cust_attrs.add_custom_attr_ss(proj,
+                                          attrname, spreadsheetpath, attrin)
+        elif choice == FILENAME:
+            print "Handling Filename-based Custom Attribute."
+            dlg = FilenameAttrDialog(self)
+            status = dlg.ShowModal()
+            if status == wx.ID_CANCEL:
+                return
+            if dlg.regex == None:
+                d = wx.MessageDialog(self, message="You must choose \
+an input regex.")
+                d.ShowModal()
+                return
+            elif dlg.attrname == None:
+                d = wx.MessageDialog(self, message="You must choose \
+an Attribute Name.")
+                d.ShowModal()
+                return
+            attrname = dlg.attrname
+            regex = dlg.regex
+            is_tabulationonly = dlg.is_tabulationonly
+            is_votedonly = dlg.is_votedonly
+            proj = self.GetParent().GetParent().proj
+            custom_attrs = cust_attrs.load_custom_attrs(proj)
+            if cust_attrs.custattr_exists(proj, attrname):
+                d = wx.MessageDialog(self, message="The attrname {0} already \
+exists as a Custom Attribute.".format(attrname))
+                d.ShowModal()
+                return
+            cust_attrs.add_custom_attr_filename(proj,
+                                                attrname, regex, 
+                                                is_tabulationonly=is_tabulationonly,
+                                                is_votedonly=is_votedonly)
+        
+    def onButton_viewcustomattrs(self, evt):
+        proj = self.GetParent().GetParent().proj
+        custom_attrs = cust_attrs.load_custom_attrs(proj)
+        if custom_attrs == None:
+            d = wx.MessageDialog(self, message="No Custom Attributes yet.")
+            d.ShowModal()
+            return
+        print "Custom Attributes are:"
+        for cattr in custom_attrs:
+            attrname = cattr.attrname
+            if cattr.mode == cust_attrs.CustomAttribute.M_SPREADSHEET:
+                print "  Attrname: {0} SpreadSheet: {1} Attr_In: {2}".format(attrname,
+                                                                             cattr.sspath,
+                                                                             cattr.attrin)
+            elif cattr.mode == cust_attrs.CustomAttribute.M_FILENAME:
+                print "  Attrname: {0} FilenameRegex: {1}".format(attrname,
+                                                                  cattr.filename_regex)
+            else:
+                print "  Attrname: {0} Mode: {1}".format(attrname, cattr.mode)
+
 
 class DrawAttrBoxPanel(select_targets.BoxDrawPanel):
     def __init__(self, parent, *args, **kwargs):
@@ -411,7 +537,7 @@ class SpreadSheetAttrDialog(DefineAttributeDialog):
 
         self.parent = parent
         self.chkbox_is_digitbased.Hide()
-        self.num_digits.Hide()
+        self.num_digits_ctrl.Hide()
         self.numdigits_label.Hide()
         self.chkbox_is_tabulationonly.Disable()
         self.btn_add.Hide()
