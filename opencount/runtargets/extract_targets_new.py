@@ -61,9 +61,15 @@ class RunThread(threading.Thread):
         self.proj = proj
 
     def run(self):
-        # TODO: Actually make the call to TargetExtraction
-        res = doExtract.convertImagesMultiMAP() 
-        
+        partitions_map = pickle.load(open(pathjoin(self.proj.projdir_path,
+                                                   self.proj.partitions_map), 'rb'))
+        b2imgs = pickle.load(open(self.proj.ballot_to_images, 'rb'))
+        img2b = pickle.load(open(self.proj.image_to_ballot, 'rb'))
+        res = doExtract.extract_targets(partitions_map, b2imgs, img2b, 
+                                        self.proj.extracted_dir,
+                                        self.proj.extracted_metadata,
+                                        self.proj.ballot_metadata,
+                                        self.proj.quarantined)
         try:
             os.makedirs(self.proj.extracted_dir)
         except:

@@ -604,11 +604,46 @@ def convertImagesMultiMAP(bal2imgs, tpl2imgs, bal2tpl, img2bal, csvPattern, targ
         quarantineCheckMAP(jobs,targetDiffDir,quarantineCvr,project, img2bal, imageMetaDir=imageMetaDir)
     return worked
 
-def extract_targets():
+def extract_targets(partitions_map, b2imgs, img2b, 
+                    targetDir, targetMetaDir, imageMetaDir,
+                    quarantineCvr, stopped=None):
     """ Target Extraction routine, for the new blankballot-less pipeline.
     Input:
-        
+        dict PARTITIONS_MAP: maps {partitionID: (imgpath_i, ...)}, where each
+            IMGPATH_i is the first page of each Ballot. 
+        dict B2IMGS: maps {int ballotID: (imgpath_i, ...)}
+        dict IMG2B: maps {imgpath: int ballotID}
+        str TARGETDIR: Dir to store extracted target patches
+        str TARGETMETADIR: Dir to store metadata for each target
+        str IMAGEMETADIR: Dir to store metadata for each ballot
+        str QUARANTINECVR:
+        fn STOPPED: Intended to be used as a way to cancel the extraction,
+            i.e. returns True if we should.
+    Output:
+        bool WORKED. True if everything ran correctly, False o.w.
     """
+    if stopped == None:
+        stopped = lambda : return False
+    targetDiffDir = targetDir + '_diffs'
     # JOBS: [[blankpaths_i, bbs_i, votedpaths_i, targetDir, targetDiffDir, targetMetaDir, imgMetaDir], ...]
     jobs = []
-    
+    # 0.) Create 'blank' ballots
+    blankpaths = []
+    for partitionID, imgpaths in partitions_map.iteritems():
+        exmpl = imgpaths[0]
+        ballot_imgpaths = b2imgs[img2b[exmpl]]
+        blankpaths.append(ballot_imgpaths)
+    # 1.) Create jobs
+    for ballotID, imgpaths in b2imgs.iteritems():
+        imgpaths_ordered = fix_ballot_order(imgpaths)
+        job = [blankpaths, bbs, imgpaths_ordered, targetDir, 
+               targetDiffDir, targetMetaDir, imageMetaDir]
+        jobs.append(job)
+    worked = convertImagesMasterMAP(targetDir, targetMetaDir, imageMetaDir, jobs, stopped)
+    if worked:
+        # do quarantineCheckMAP?
+        pass
+    return worked
+
+            
+

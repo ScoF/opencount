@@ -40,9 +40,11 @@ class PartitionMainPanel(wx.Panel):
         self.proj.removeCloseEvent(self.partitionpanel.save_session)
         self.export_results()
     def export_results(self):
-        partition_outP = pathjoin(self.proj.projdir_path, self.proj.partitions)
+        partition_outP = pathjoin(self.proj.projdir_path, self.proj.partitions_map)
         pickle.dump(self.partitionpanel.partitioning, open(partition_outP, 'wb'),
                     pickle.HIGHEST_PROTOCOL)
+        # TODO: Compute the proj.ballot_to_page data structure, mapping:
+        # {str imgpath: int side}
         
 class PartitionPanel(ScrolledPanel):
     PARTITION_JOBID = util.GaugeID("PartitionJobId")

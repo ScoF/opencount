@@ -126,7 +126,7 @@ class Project(object):
                      'projdir_path': projdir_path,
                      'voteddir': '',
                      'is_multipage': False,
-                     'partitions': 'partitions.p',
+                     'partitions_map': 'partitions_map.p',
                      'infer_bounding_boxes': False,
                      'ocr_tmp_dir': pathjoin(projdir_path, 'ocr_tmp_dir'),
                      'contest_id': pathjoin(projdir_path, 'contest_id.csv'),
