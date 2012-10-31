@@ -40,8 +40,28 @@ class PartitionMainPanel(wx.Panel):
         self.proj.removeCloseEvent(self.partitionpanel.save_session)
         self.export_results()
     def export_results(self):
-        partition_outP = pathjoin(self.proj.projdir_path, self.proj.partitions_map)
-        pickle.dump(self.partitionpanel.partitioning, open(partition_outP, 'wb'),
+        """ Export the partitions_map and partitions_invmap, where
+        PARTITIONS_MAP maps {partitionID: [int BallotID_i, ...]}, and
+        PARTITIONS_INVMAP maps {int BallotID: partitionID}.
+        """
+        # partitioning: {(str bc_i, ...): [[imgpath_i, isflip_i, bbs_i], ...]}
+        # sort by first barcode
+        partitioning_sorted = sorted(self.partitionpanel.partitioning.items(), key=lambda t: t[0][0])
+        partitions_map = {}
+        partitions_invmap = {}
+        img2b = pickle.load(open(self.proj.image_to_ballot, 'rb'))
+        for partitionID, (bcs, items) in enumerate(partitioning_sorted):
+            partition = set()
+            for (imgpath, isflip, bbs) in items:
+                ballotid = img2b[imgpath]
+                partition.add(ballotid)
+                partitions_invmap[ballotid] = partitionID
+            partitions_map[partitionID] = list(partition)
+        partitions_map_outP = pathjoin(self.proj.projdir_path, self.proj.partitions_map)
+        partitions_invmap_outP = pathjoin(self.proj.projdir_path, self.proj.partitions_invmap)
+        pickle.dump(partitions_map, open(partitions_map_outP, 'wb'),
+                    pickle.HIGHEST_PROTOCOL)
+        pickle.dump(partitions_invmap, open(partitions_invmap_outP, 'wb'),
                     pickle.HIGHEST_PROTOCOL)
         # TODO: Compute the proj.ballot_to_page data structure, mapping:
         # {str imgpath: int side}
@@ -117,16 +137,16 @@ class PartitionPanel(ScrolledPanel):
 
     def onButton_run(self, evt):
         class PartitionThread(threading.Thread):
-            def __init__(self, voteddir, vendor, callback, jobid, queue, tlisten, *args, **kwargs):
+            def __init__(self, imgpaths, vendor, callback, jobid, queue, tlisten, *args, **kwargs):
                 threading.Thread.__init__(self, *args, **kwargs)
-                self.voteddir = voteddir
+                self.imgpaths = imgpaths
                 self.vendor = vendor
                 self.callback = callback
                 self.jobid = jobid
                 self.queue = queue
                 self.tlisten = tlisten
             def run(self):
-                partitioning = partition_imgs.partition_imgs(self.voteddir, vendor=vendor, queue=queue)
+                partitioning = partition_imgs.partition_imgs(self.imgpaths, vendor=vendor, queue=queue)
                 wx.CallAfter(Publisher().sendMessage, "signals.MyGauge.done", (self.jobid,))
                 wx.CallAfter(self.callback, partitioning)
                 self.tlisten.stop()
@@ -156,12 +176,13 @@ class PartitionPanel(ScrolledPanel):
         vendor = self.vendor_dropdown.GetValue()
         b2imgs = pickle.load(open(self.proj.ballot_to_images, 'rb'))
         # TODO: Assume that relevant information is on the first page
+        votedpaths = []
         for ballotid, imgpaths in b2imgs.iteritems():
-            imgpaths.append(imgpaths[0])
+            votedpaths.append(imgpaths[0])
         queue = Queue.Queue()
         tlisten = ListenThread(queue, self.PARTITION_JOBID)
 
-        t = PartitionThread(imgpaths, vendor, self.on_partitiondone,
+        t = PartitionThread(votedpaths, vendor, self.on_partitiondone,
                             self.PARTITION_JOBID, queue, tlisten)
         numtasks = len(imgpaths)
         gauge = util.MyGauge(self, 1, thread=t, msg="Running Partitioning...",

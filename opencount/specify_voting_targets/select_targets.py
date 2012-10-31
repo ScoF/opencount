@@ -32,14 +32,17 @@ class SelectTargetsMainPanel(wx.Panel):
 
     def start(self, proj, stateP, ocrtmpdir):
         self.proj = proj
-        # PARTITIONS: dict {(barcode_i, ...): [(imgpath_i, isflip_i, bbs_i), ...]}
+        # PARTITIONS: dict {int partitionID: [int ballotID_i, ...]}
         partitions_map = pickle.load(open(pathjoin(proj.projdir_path,
                                                    proj.partitions_map), 'rb'))
+        b2imgs = pickle.load(open(proj.ballot_to_images, 'rb'))
         # 0.) Munge PARTITIONS_MAP to list of lists of lists
         partitions = []
-        for partitionID, group in partitions_map.iteritems():
-            # TODO: Account for multipage
-            partition = [[imgpath] for (imgpath, isflip, bbs) in group]
+        for partitionID, ballotids in partitions_map.iteritems():
+            partition = []
+            for ballotid in ballotids:
+                imgpaths = b2imgs[ballotid]
+                partition.append(imgpaths)
             partitions.append(partition)
 
         self.proj.addCloseEvent(self.seltargets_panel.save_session)
@@ -1001,6 +1004,9 @@ class Box(object):
         DC to use.
         """
         return ("Green", 2)
+    def marshall(self):
+        return {'x1': self.x1, 'y1': self.y1, 'x2': self.x2, 'y2': self.y2}
+
 class TargetBox(Box):
     def __init__(self, x1, y1, x2, y2, is_sel=False):
         Box.__init__(self, x1, y1, x2, y2)

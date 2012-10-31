@@ -12,7 +12,6 @@ from os.path import join as pathjoin
 sys.path.append('..')
 
 import tempmatch, util, common
-import label_attributes
 import specify_voting_targets.util_widgets as util_widgets
 import specify_voting_targets.util_gui as util_gui
 import view_overlays, verify_overlays
@@ -58,7 +57,13 @@ class SelectAttributesMasterPanel(wx.Panel):
         else:
             self.boxes = {}
             self.usersel_exs = {}
-            self.mapping, self.inv_mapping = label_attributes.do_extract_attr_patches(proj)
+            partitions_map = pickle.load(open(pathjoin(proj.projdir_path,
+                                                       proj.partitions_map), 'rb'))
+            b2imgs = pickle.load(open(proj.ballot_to_images, 'rb'))
+            blanks = [] # list of [[path_side0, path_side1, ...], ...]
+            for partitionID, ballotids in partitions_map.iteritems():
+                blanks.append(b2imgs[ballotids[0]])
+            self.mapping, self.inv_mapping = do_extract_attr_patches(proj, blanks)
             self.attrtypes = list(common.get_attrtypes(proj, with_digits=False))
             self.attridx = 0
         self.do_labelattribute(self.attridx)
@@ -656,7 +661,124 @@ class PatchBitmap(util_widgets.CellBitmap):
             x2, y2 = self.img2c(x2, y2)
             dc.SetPen(wx.Pen("Red", 2))
             dc.DrawRectangle(x1, y1, x2-x1, y2-y1)
-            
+
+def do_extract_attr_patches(proj):
+    """Extract all attribute patches from all blank ballots into
+    the specified outdir. Saves them to:
+        <projdir>/extract_attrs_templates/ATTRTYPE/*.png
+    Output:
+        (dict mapping, dict inv_mapping, where:
+          mapping is {imgpath: {str attrtype: str patchpath}}
+          inv_mapping is {str patchpath: (imgpath, attrtype)}
+    """
+    tmp2imgs = pickle.load(open(proj.template_to_images, 'rb'))
+    blanks = tmp2imgs.values() # list of ((pathside0, pathside1,...), ...)
+    mapping, invmapping, blank2attrpatch, invb2ap = partask.do_partask(extract_attr_patches,
+                                                                       blanks,
+                                                                       _args=(proj,),
+                                                                       combfn=_extract_combfn,
+                                                                       init=({}, {}, {}, {}))
+    blank2attrpatchP = pathjoin(proj.projdir_path,
+                                proj.blank2attrpatch)
+    pickle.dump(blank2attrpatch, open(blank2attrpatchP, 'wb'))
+    invblank2attrpatchP = pathjoin(proj.projdir_path,
+                                   proj.invblank2attrpatch)
+    pickle.dump(invb2ap, open(invblank2attrpatchP, 'wb'))
+    return mapping, invmapping
+    
+def _extract_combfn(result, subresult):
+    """ Aux. function used for the partask.do_partask interface.
+    Input:
+        result: (dict mapping_0, dict invmapping_0, dict blank2attrpatch_0, dict invb2ap_0)
+        subresult: (dict mapping_1, dict invmapping_1, dict blank2attrpach_1, dict invb2ap_1)
+    Output:
+        The result of 'combining' result and subresult:
+            (dict mapping*, dict invmapping*, dict blank2attrpatch*, dict invb2ap*)
+    """
+    mapping, invmapping, blank2attrpatch, invblank2attrpatch = result
+    mapping_sub, invmapping_sub, blank2attrpatch_sub, invblank2attrpatch_sub = subresult
+    new_mapping = dict(mapping.items() + mapping_sub.items())
+    new_invmapping = dict(invmapping.items() + invmapping_sub.items())
+    new_blank2attrpatch = dict(blank2attrpatch) # maps {str imgpath: {str attrtype: str patchpath}}
+    for imgpath, subdict in blank2attrpatch_sub.iteritems():
+        for attrtype, patchpath in subdict.iteritems():
+            new_blank2attrpatch.setdefault(imgpath, {})[attrtype] = patchpath
+    # invblank2attrpatch maps {patchpath: (imgpath, attrtype)}
+    new_invblank2attrpatch = dict(invblank2attrpatch.items() + invblank2attrpatch_sub.items())
+    return (new_mapping, new_invmapping, new_blank2attrpatch, new_invblank2attrpatch)
+
+def extract_attr_patches(blanks, (proj,)):
+    """
+    Extracts all image-based attributes from blank ballots, and saves
+    the patches to the outdir proj.labelattrs_patchesdir.
+    Input:
+        list blanks: Of the form ((frontpath_i, backpath_i), ...)
+        obj proj:
+    Output:
+        (dict mapping, dict inv_mapping, dict blank2attrpatch)
+    """
+    outdir = os.path.join(proj.projdir_path,
+                          proj.extract_attrs_templates)
+    w_img, h_img = proj.imgsize
+    # list of marshall'd attrboxes (i.e. dicts)
+    ballot_attributes = pickle.load(open(proj.ballot_attributesfile, 'rb'))
+    mapping = {} # maps {imgpath: {str attrtypestr: str patchPath}}
+    inv_mapping = {} # maps {str patchPath: (imgpath, attrtypestr)}
+    blank2attrpatch = {} # maps {str imgpath: {str attrtype: str patchpath}}
+    invblank2attrpatch = {} # maps {str patchpath: (imgpath, attrtype)}
+    for blankpaths in blanks:
+        for blankside, imgpath in enumerate(blankpaths):
+            for attr in ballot_attributes:
+                if attr['is_digitbased']:
+                    continue
+                imgname =  os.path.split(imgpath)[1]
+                attrside = attr['side']
+                assert type(attrside) == str # 'front' or 'back'
+                attrside = 0 if attrside == 'front' else 1
+                x1 = int(round(attr['x1']*w_img))
+                y1 = int(round(attr['y1']*h_img))
+                x2 = int(round(attr['x2']*w_img))
+                y2 = int(round(attr['y2']*h_img))
+                attrtype = common.get_attrtype_str(attr['attrs'])
+                if blankside == attrside:
+                    # patchP: if outdir is: 'labelattrs_patchesdir',
+                    # imgpath is: '/media/data1/election/blanks/foo/1.png',
+                    # proj.templatesdir is: '/media/data1/election/blanks/
+                    tmp = proj.templatesdir
+                    if not tmp.endswith('/'):
+                        tmp += '/'
+                    partdir = os.path.split(imgpath[len(tmp):])[0] # foo/
+                    patchrootDir = pathjoin(outdir,
+                                            partdir,
+                                            os.path.splitext(imgname)[0])
+                    # patchrootDir: labelattrs_patchesdir/foo/1/
+                    util_gui.create_dirs(patchrootDir)
+                    patchoutP = pathjoin(patchrootDir, "{0}_{1}.png".format(os.path.splitext(imgname)[0],
+                                                                            attrtype))
+                    blank2attrpatch.setdefault(imgpath, {})[attrtype] = patchoutP
+                    invblank2attrpatch[patchoutP] = (imgpath, attrtype)
+                    if not os.path.exists(patchoutP):
+                    #if True:
+                        # TODO: Only extract+save the imge patches
+                        # when you /have/ to.
+                        # shared.standardImread: ~0.40s
+                        # scipy.misc.imread: ~0.192s
+                        # PIL: ~0.168s
+                        # OpenCV: ~0.06s
+                        if abs(y1-y2) == 0 or abs(x1-x2) == 0:
+                            print "Uh oh, about to crash. Why is this happening?"
+                            print "    proj.imgsize:", proj.imgsize
+                            print "    (y1,y2,x1,x2):", (y1,y2,x1,x2)
+                            pdb.set_trace()
+                        img = cv.LoadImage(imgpath, cv.CV_LOAD_IMAGE_GRAYSCALE)
+                        patch = cv.CreateImage(((x2-x1), (y2-y1)), img.depth, img.channels)
+                        cv.SetImageROI(img, (int(x1), int(y1), int(x2-x1), int(y2-y1)))
+                        cv.Copy(img, patch)
+                        cv.SaveImage(patchoutP, patch)
+                        
+                    mapping.setdefault(imgpath, {})[attrtype] = patchoutP
+                    inv_mapping[patchoutP] = (imgpath, attrtype)
+    return mapping, inv_mapping, blank2attrpatch, invblank2attrpatch
 
 def normbox((x1,y1,x2,y2)):
     return (min(x1,x2), min(y1,y2), max(x1, x2), max(y1,y2))

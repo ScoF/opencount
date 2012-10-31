@@ -6,6 +6,7 @@ except:
     import pickle
 import wx
 from wx.lib.pubsub import Publisher
+import cv
 
 sys.path.append('..')
 
@@ -98,6 +99,9 @@ class ConfigPanel(wx.Panel):
         self.export_results()
         
     def export_results(self):
+        """ Create and store the ballot_to_images and image_to_ballot
+        data structures. Also, set the proj.imgsize property.
+        """
         def separate_imgs(voteddir):
             """ Separates images into sets of Ballots.
             Input:
@@ -122,7 +126,10 @@ class ConfigPanel(wx.Panel):
                 image_to_ballot[imgpath] = id
         pickle.dump(ballot_to_images, open(self.project.ballot_to_images, 'wb'), pickle.HIGHEST_PROTOCOL)
         pickle.dump(image_to_ballot, open(self.project.image_to_ballot, 'wb'), pickle.HIGHEST_PROTOCOL)
-        
+        # 2.) Set project.imgsize, assuming that all image dimensions are the same
+        I = cv.LoadImage(imgpaths[0], cv.CV_LOAD_IMAGE_UNCHANGED)
+        w, h = cv.GetSize(I)
+        self.project.imgsize = (w, h)
         
     def restore_session(self, stateP=None):
         try:

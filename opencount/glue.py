@@ -100,9 +100,9 @@ class MainFrame(wx.Frame):
         elif old == MainFrame.PARTITION:
             self.panel_partition.stop()
         elif old == MainFrame.DEFINE_ATTRS:
-            self.panel_defineattrs.stop()
+            self.panel_define_attrs.stop()
         elif old == MainFrame.LABEL_ATTRS:
-            pass
+            self.panel_label_attrs.stop()
         elif old == MainFrame.LABEL_DIGATTRS:
             pass
         elif old == MainFrame.CORRECT_GROUPING:
@@ -130,7 +130,7 @@ class MainFrame(wx.Frame):
             self.panel_define_attrs.start(self.project, pathjoin(self.project.projdir_path,
                                                                  '_state_defineattrs.p'))
         elif new == MainFrame.LABEL_ATTRS:
-            pass
+            self.panel_label_attrs.start(self.project)
         elif new == MainFrame.LABEL_DIGATTRS:
             pass
         elif new == MainFrame.CORRECT_GROUPING:

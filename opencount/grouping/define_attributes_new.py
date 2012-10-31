@@ -50,7 +50,13 @@ class DefineAttributesMainPanel(wx.Panel):
         self.export_results()
 
     def export_results(self):
-        pass
+        """ Export the attribute patch information to
+        proj.ballot_attributesfile, which will be used by further
+        components in the pipeline.
+        """
+        attrboxes = sum(self.defineattrs.boxes_map.values(), [])
+        m_boxes = [attrbox.marshall() for attrbox in attrboxes]
+        pickle.dump(m_boxes, open(self.proj.ballot_attributesfile, 'wb'))
         
 class DefineAttributesPanel(ScrolledPanel):
     def __init__(self, parent, *args, **kwargs):
@@ -328,6 +334,7 @@ class DrawAttrBoxPanel(select_targets.BoxDrawPanel):
             box.is_digitbased = dlg.is_digitbased
             box.num_digits = dlg.num_digits
             box.is_tabulationonly = dlg.is_tabulationonly
+            box.side = self.GetParent().cur_side
             label = ', '.join(box.attrtypes)
             if box.is_digitbased:
                 label += ' (DigitBased)'
@@ -357,28 +364,44 @@ class DrawAttrBoxPanel(select_targets.BoxDrawPanel):
             dc.DrawText(box.label, x_txt, y_txt)
         
 class AttrBox(select_targets.Box):
-    def __init__(self, x1, y1, x2, y2, is_sel=False, label=''):
+    def __init__(self, x1, y1, x2, y2, is_sel=False, label='', attrtypes=None,
+                 is_digitbased=None, num_digits=None, is_tabulationonly=None,
+                 side=None):
         select_targets.Box.__init__(self, x1, y1, x2, y2)
         self.is_sel = is_sel
         self.label = label
-        self.attrtypes = None
-        self.is_digitbased = None
-        self.num_digits = None
-        self.is_tabulationonly = None
+        self.attrtypes = attrtypes
+        self.is_digitbased = is_digitbased
+        self.num_digits = num_digits
+        self.is_tabulationonly = is_tabulationonly
+        self.side = side
     def __str__(self):
         return "AttrBox({0},{1},{2},{3},{4})".format(self.x1, self.y1, self.x2, self.y2, self.label)
     def __repr__(self):
         return "AttrBox({0},{1},{2},{3},{4})".format(self.x1, self.y1, self.x2, self.y2, self.label)
     def __eq__(self, o):
         return (isinstance(o, AttrBox) and self.x1 == o.x1 and self.x2 == o.x2
-                and self.y1 == o.y1 and self.y2 == o.y2 and self.label == o.label)
+                and self.y1 == o.y1 and self.y2 == o.y2 and self.label == o.label
+                and self.side == o.side)
     def copy(self):
-        return AttrBox(self.x1, self.y1, self.x2, self.y2, label=self.label)
+        return AttrBox(self.x1, self.y1, self.x2, self.y2, label=self.label,
+                       attrtypes=self.attrtypes, is_digitbased=self.is_digitbased,
+                       num_digits=self.num_digits, is_tabulationonly=self.is_tabulationonly,
+                       side=self.side)
     def get_draw_opts(self):
         if self.is_sel:
             return ("Yellow", 3)
         else:
             return ("Green", 3)
+    def marshall(self):
+        """ Return a dict-equivalent version of myself. """
+        data = select_targets.Box.marshall(self)
+        data['attrs'] = self.attrtypes
+        data['side'] = self.side
+        data['is_digitbased'] = self.is_digitbased
+        data['num_digits'] = self.num_digits
+        data['is_tabulationonly'] = self.is_tabulationonly
+        return data
 
 class DefineAttributeDialog(wx.Dialog):
     """
