@@ -453,7 +453,7 @@ this partition.")
                     # InferContests throws out the pre-determined contest
                     # grouping, so just stick each target in its own
                     # 'contest'
-                    style_boxes.append([[box.x1, box.y1, box.x2, box.y2]])
+                    style_boxes.append([(box.x1, box.y1, box.x2, box.y2)])
                 targets.append(style_boxes)
         #bboxes = dict(zip(imgpaths, group_contests.find_contests(self.ocrtempdir, imgpaths_exs, targets)))
         # CONTEST_RESULTS: [[box_i, ...], ...], each subtuple_i is for imgpath_i.
@@ -469,6 +469,7 @@ this partition.")
             self.boxes[partition_idx][page] = justtargets+contest_boxes
         # 2.) Update self.IMAGEPANEL.BOXES (i.e. the UI)
         self.imagepanel.set_boxes(self.boxes[self.cur_i][self.cur_page])
+        self.Refresh()
 
 class Toolbar(wx.Panel):
     def __init__(self, parent, *args, **kwargs):
