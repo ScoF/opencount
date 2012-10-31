@@ -431,9 +431,11 @@ def convertImagesMasterMAP(targetDir, targetMetaDir, imageMetaDir, jobs, stopped
     """ Called by both single and multi-page elections. Performs
     Target Extraction.
     Input:
-        targetDir:
-        targetMetaDir:
-        imageMetaDir:
+        str targetDir: Directory to dump extracted target images to.
+        str targetMetaDir: Directory to store target metadata into.
+        str imageMetaDir: Directory to store metadata for each Ballot,
+            such as ballotpath, path to each extracted target, assoc'd
+            blank ballot, isflipped.
         list jobs: [[tmppaths_i, bbs_i, imgpaths_i, targetDir_i, targetDiffDir_i, imageMetaDir_i], ...]
         stopped:
     """
@@ -602,3 +604,11 @@ def convertImagesMultiMAP(bal2imgs, tpl2imgs, bal2tpl, img2bal, csvPattern, targ
         quarantineCheckMAP(jobs,targetDiffDir,quarantineCvr,project, img2bal, imageMetaDir=imageMetaDir)
     return worked
 
+def extract_targets():
+    """ Target Extraction routine, for the new blankballot-less pipeline.
+    Input:
+        
+    """
+    # JOBS: [[blankpaths_i, bbs_i, votedpaths_i, targetDir, targetDiffDir, targetMetaDir, imgMetaDir], ...]
+    jobs = []
+    

@@ -33,7 +33,7 @@ class PartitionMainPanel(wx.Panel):
 
     def start(self, proj, stateP):
         self.proj = proj
-        self.partitionpanel.start(self.proj.voteddir, stateP)
+        self.partitionpanel.start(self.proj, self.proj.voteddir, stateP)
         self.proj.addCloseEvent(self.partitionpanel.save_session)
     def stop(self):
         self.partitionpanel.save_session()
@@ -51,6 +51,7 @@ class PartitionPanel(ScrolledPanel):
         ScrolledPanel.__init__(self, parent, *args, **kwargs)
         
         self.voteddir = None
+        # PARTITIONING: maps {partitionID: [imgpath_i, ...]}
         self.partitioning = None
 
         self.init_ui()
@@ -78,11 +79,12 @@ class PartitionPanel(ScrolledPanel):
         self.Layout()
         self.SetupScrolling()
 
-    def start(self, voteddir, stateP='_state_partition.p'):
+    def start(self, proj, voteddir, stateP='_state_partition.p'):
         """ 
         Input:
             str VOTEDDIR: Root directory of voted ballots.
         """
+        self.proj = proj
         self.voteddir = voteddir
         self.stateP = stateP
         self.restore_session()
@@ -150,10 +152,10 @@ class PartitionPanel(ScrolledPanel):
                         pass
 
         vendor = self.vendor_dropdown.GetValue()
-        imgpaths = []
-        for dirpath, dirnames, filenames in os.walk(self.voteddir):
-            for imgname in [f for f in filenames if util.is_image_ext(f)]:
-                imgpaths.append(pathjoin(dirpath, imgname))
+        b2imgs = pickle.load(open(self.proj.ballot_to_images, 'rb'))
+        # TODO: Assume that relevant information is on the first page
+        for ballotid, imgpaths in b2imgs.iteritems():
+            imgpaths.append(imgpaths[0])
         queue = Queue.Queue()
         tlisten = ListenThread(queue, self.PARTITION_JOBID)
 
