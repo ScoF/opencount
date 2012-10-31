@@ -1,4 +1,5 @@
-import sys, os, time, math, pdb, traceback, threading, Queue, copy, multiprocessing
+import sys, os, time, math, pdb, traceback, threading, Queue, copy
+import multiprocessing, csv
 try:
     import cPickle as pickle
 except ImportError:
@@ -45,6 +46,59 @@ class SelectTargetsMainPanel(wx.Panel):
 
     def stop(self):
         self.proj.removeCloseEvent(self.seltargets_panel.save_session)
+        self.export_results()
+
+    def export_results(self):
+        """ For each partition, export the locations of the voting
+        targets.
+        """
+        try:
+            os.makedirs(self.proj.target_locs_dir)
+        except:
+            pass
+        fields = ('imgpath', 'id', 'x', 'y', 'width', 'height', 'label', 'is_contest', 'contest_id')
+        for partition_idx, boxes_sides in self.seltargets_panel.boxes.iteritems():
+            for side, boxes in enumerate(boxes_sides):
+                outpath = pathjoin(self.proj.target_locs_dir,
+                                   "partition_{0}_side_{1}.csv".format(partition_idx, side))
+                writer = csv.DictWriter(open(outpath, 'wb'), fields)
+
+                # BOX_ASSOCS: dict {int contest_id: [ContestBox, [TargetBox_i, ...]]}
+                box_assocs = self.compute_box_ids(boxes)
+                # TODO: For now, just grab one exemplar image from this partition
+                imgpath = self.seltargets_panel.partitions[partition_idx][side][0]
+                rows_contests = [] 
+                rows_targets = []
+                id_c, id_t = 0, 0
+                for contest_id, (contestbox, targetboxes) in box_assocs.iteritems():
+                    rowC = {'imgpath': imgpath, 'id': id_c,
+                            'x': contestbox.x1, 'y': contestbox.y1,
+                            'width': contestbox.x2-contestbox.x1,
+                            'height': contestbox.y2-contestbox.y1,
+                            'label': '', 'is_contest': 1, 
+                            'contest_id': contest_id}
+                    rows_contest.append(rowC)
+                    id_c += 1
+                    for box in targetboxes:
+                        rowT = {'imgpath': imgpath, 'id': id_t,
+                               'x': box.x1, 'y': box.y1,
+                               'width': box.x2-box.x1, 'height': box.y2-box.y1,
+                               'label': '', 'is_contest': 0,
+                               'contest_id': contest_id}
+                        rows_targets.append(rowT)
+                        id_t += 1
+                writer.writerows(rows_contests + rows_targets)
+
+    def compute_box_ids(self, boxes):
+        """ Given a list of Boxes, some of which are Targets, others
+        of which are Contests, geometrically compute the correct
+        target->contest associations.
+        Input:
+            list BOXES:
+        Output:
+            dict ASSOCS. {int contest_id, [ContestBox, [TargetBox_i, ...]]}
+        """
+        return {}
 
 class SelectTargetsPanel(ScrolledPanel):
     """ A widget that allows you to find voting targets on N ballot
@@ -906,6 +960,25 @@ class TargetBox(Box):
             return ("Green", 3)
     def copy(self):
         return TargetBox(self.x1, self.y1, self.x2, self.y2, is_sel=self.is_sel)
+class ContestBox(Box):
+    def __init__(self, x1, y1, x2, y2, is_sel=False):
+        Box.__init__(self, x1, y1, x2, y2)
+        self.is_sel = is_sel
+    def __str__(self):
+        return "ContestBox({0},{1},{2},{3},is_sel={4})".format(self.x1, self.y1, self.x2, self.y2, self.is_sel)
+    def __repr__(self):
+        return "ContestBox({0},{1},{2},{3},is_sel={4})".format(self.x1, self.y1, self.x2, self.y2, self.is_sel)
+    def get_draw_opts(self):
+        """ Given the state of me, return the color+line-width for the
+        DC to use.
+        """
+        if self.is_sel:
+            return ("Yellow", 3)
+        else:
+            return ("Blue", 3)
+    def copy(self):
+        return ContestBox(self.x1, self.y1, self.x2, self.y2, is_sel=self.is_sel)
+    
 class SelectionBox(Box):
     def __str__(self):
         return "SelectionBox({0},{1},{2},{3})".format(self.x1, self.y1, self.x2, self.y2)
