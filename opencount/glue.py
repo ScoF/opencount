@@ -31,11 +31,11 @@ class MainFrame(wx.Frame):
     PROJECT = 0
     CONFIG = 1
     PARTITION = 2
-    SELTARGETS = 3
-    DEFINE_ATTRS = 4
-    LABEL_ATTRS = 5
-    LABEL_DIGATTRS = 6
-    CORRECT_GROUPING = 7
+    DEFINE_ATTRS = 3
+    LABEL_ATTRS = 4
+    LABEL_DIGATTRS = 5
+    CORRECT_GROUPING = 6
+    SELTARGETS = 7
     LABEL_CONTESTS = 8
     TARGET_EXTRACT = 9
     QUARANTINE = 10
@@ -63,11 +63,11 @@ class MainFrame(wx.Frame):
         self.panel_projects = ProjectPanel(self.notebook)
         self.panel_config = ConfigPanel(self.notebook)
         self.panel_partition = PartitionMainPanel(self.notebook)
-        self.panel_seltargets = SelectTargetsMainPanel(self.notebook)
         self.panel_define_attrs = DefineAttributesMainPanel(self.notebook)
         self.panel_label_attrs = SelectAttributesMasterPanel(self.notebook)
         self.panel_label_digitattrs = tab_wrap(LabelDigitsPanel)(self.notebook)
         self.panel_correct_grouping = GroupingMasterPanel(self.notebook)
+        self.panel_seltargets = SelectTargetsMainPanel(self.notebook)
         self.panel_label_contests = tab_wrap(LabelContest)(self.notebook)
         self.panel_target_extract = TargetExtractPanel(self.notebook)
         self.panel_set_threshold = tab_wrap(ThresholdPanel)(self.notebook)
@@ -76,12 +76,12 @@ class MainFrame(wx.Frame):
         self.pages = [(self.panel_projects, "Projects"),
                       (self.panel_config, "Import Files"), 
                       (self.panel_partition, "Partition ballots"),
-                      (self.panel_seltargets, "Select Voting Targets"),
                       (self.panel_define_attrs, "Define Ballot Attributes"),
                       (self.panel_label_attrs, "Label Ballot Attributes"),
                       (self.panel_label_digitattrs, "Label Digit-Based Attributes"),
-                      (self.panel_label_contests, "Label Contests"),
                       (self.panel_correct_grouping, "Correct Grouping"),
+                      (self.panel_seltargets, "Select Voting Targets"),
+                      (self.panel_label_contests, "Label Contests"),
                       (self.panel_target_extract, "Extract Targets"),
                       (self.panel_set_threshold, "Set Threshold"),
                       (self.panel_quarantine, "Process Quarantine"),
@@ -99,8 +99,6 @@ class MainFrame(wx.Frame):
             self.panel_config.stop()
         elif old == MainFrame.PARTITION:
             self.panel_partition.stop()
-        elif old == MainFrame.SELTARGETS:
-            self.panel_seltargets.stop()
         elif old == MainFrame.DEFINE_ATTRS:
             self.panel_defineattrs.stop()
         elif old == MainFrame.LABEL_ATTRS:
@@ -109,6 +107,8 @@ class MainFrame(wx.Frame):
             pass
         elif old == MainFrame.CORRECT_GROUPING:
             pass
+        elif old == MainFrame.SELTARGETS:
+            self.panel_seltargets.stop()
         elif old == MainFrame.LABEL_CONTESTS:
             pass
         elif old == MainFrame.TARGET_EXTRACT:
@@ -126,10 +126,6 @@ class MainFrame(wx.Frame):
         elif new == MainFrame.PARTITION:
             self.panel_partition.start(self.project, pathjoin(self.project.projdir_path,
                                                               '_state_partition.p'))
-        elif new == MainFrame.SELTARGETS:
-            self.panel_seltargets.start(self.project, pathjoin(self.project.projdir_path,
-                                                               '_state_seltargets.p'),
-                                        self.project.ocr_tmp_dir)
         elif new == MainFrame.DEFINE_ATTRS:
             self.panel_define_attrs.start(self.project, pathjoin(self.project.projdir_path,
                                                                  '_state_defineattrs.p'))
@@ -139,6 +135,10 @@ class MainFrame(wx.Frame):
             pass
         elif new == MainFrame.CORRECT_GROUPING:
             pass
+        elif new == MainFrame.SELTARGETS:
+            self.panel_seltargets.start(self.project, pathjoin(self.project.projdir_path,
+                                                               '_state_seltargets.p'),
+                                        self.project.ocr_tmp_dir)
         elif new == MainFrame.LABEL_CONTESTS:
             """ Requires:
                 proj.target_locs_dir -- Location of targets
