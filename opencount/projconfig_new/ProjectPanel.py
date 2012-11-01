@@ -129,6 +129,7 @@ class Project(object):
                      'partitions_map': 'partitions_map.p',
                      'partitions_invmap': 'partitions_invmap.p',
                      'partition_targets_map': 'partitions_targets_map.p',
+                     'target_locs_map': 'target_locs_map.p',
                      'infer_bounding_boxes': False,
                      'ocr_tmp_dir': pathjoin(projdir_path, 'ocr_tmp_dir'),
                      'contest_id': pathjoin(projdir_path, 'contest_id.csv'),
@@ -194,7 +195,7 @@ class Project(object):
                      'invblank2attrpatch': 'invblank2attrpatch.p',
                      'digitmultexemplars': 'digitmultexemplars',
                      'digitmultexemplars_map': 'digitmultexemplars_map.p',
-                     'grouplabels_record': 'grouplabels_record.p'
+                     'grouplabels_record': 'grouplabels_record.p',
                      'devmode': True}
         self.createFields()
 

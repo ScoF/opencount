@@ -57,13 +57,20 @@ class SelectTargetsMainPanel(wx.Panel):
 
     def export_results(self):
         """ For each partition, export the locations of the voting
-        targets.
+        targets to two locations:
+            1.) A proj.target_locs pickle'd data structure
+            2.) A dir of .csv files (for integration with LabelContests+
+                InferContests).
         """
         try:
             os.makedirs(self.proj.target_locs_dir)
         except:
             pass
         partition_targets_map = {} # maps {int partitionID: [csvpath_side0, ...]}
+        # TARGET_LOCS_MAP: maps {int partitionID: [CONTEST_i, ...]}, where each
+        #     CONTEST_i is: [contestbox, targetbox_i, ...], where each
+        #     box := [x1, y1, width, height, id, contest_id, is_contest]
+        target_locs_map = {}
         fields = ('imgpath', 'id', 'x', 'y', 'width', 'height', 'label', 'is_contest', 'contest_id')
         for partition_idx, boxes_sides in self.seltargets_panel.boxes.iteritems():
             csvpaths = []
@@ -88,6 +95,11 @@ class SelectTargetsMainPanel(wx.Panel):
                             'label': '', 'is_contest': 1, 
                             'contest_id': contest_id}
                     rows_contests.append(rowC)
+                    cbox = [contestbox.x1, contestbox.y1,
+                            contestbox.x2 - contestbox.x1,
+                            contestbox.y2 - contestbox.y1,
+                            id_c, contest_id]
+                    target_locs_map.setdefault(partition_idx, []).append(cbox)
                     id_c += 1
                     for box in targetboxes:
                         rowT = {'imgpath': imgpath, 'id': id_t,
@@ -96,11 +108,17 @@ class SelectTargetsMainPanel(wx.Panel):
                                'label': '', 'is_contest': 0,
                                'contest_id': contest_id}
                         rows_targets.append(rowT)
+                        tbox = [box.x1, box.y1, box.x2 - box.x1, box.y2 - box.y1,
+                                id_t, contest_id]
+                        target_locs_map[partition_idx].append(tbox)
                         id_t += 1
                 writer.writerows(rows_contests + rows_targets)
             partition_targets_map[partition_idx] = csvpaths
         pickle.dump(partition_targets_map, open(pathjoin(self.proj.projdir_path,
                                                          self.proj.partition_targets_map), 'wb'),
+                    pickle.HIGHEST_PROTOCOL)
+        pickle.dump(target_locs_map, open(pathjoin(self.proj.projdir_path,
+                                                   self.proj.target_locs_map), 'wb'),
                     pickle.HIGHEST_PROTOCOL)
 
     def compute_box_ids(self, boxes):
