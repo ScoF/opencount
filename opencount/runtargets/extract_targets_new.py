@@ -1,4 +1,4 @@
-import sys, os, traceback, pdb, threading, multiprocessing, math
+import sys, os, traceback, pdb, threading, multiprocessing, math, array
 try:
     import cPickle as pickle
 except:
@@ -68,7 +68,10 @@ class RunThread(threading.Thread):
         img2b = pickle.load(open(self.proj.image_to_ballot, 'rb'))
         img2page = pickle.load(open(pathjoin(self.proj.projdir_path,
                                              self.proj.image_to_page), 'rb'))
+        target_locs_map = pickle.load(open(pathjoin(self.proj.projdir_path,
+                                                    self.proj.target_locs_map), 'rb'))
         res = doExtract.extract_targets(partitions_map, b2imgs, img2b, img2page,
+                                        target_locs_map,
                                         self.proj.extracted_dir,
                                         self.proj.extracted_metadata,
                                         self.proj.ballot_metadata,
@@ -84,7 +87,8 @@ class RunThread(threading.Thread):
         # Just add it to there once. Code will be faster.
         dirList = [x for x in dirList]
         
-        quarantined = set([util.encodepath(x[:-1]) for x in open(self.proj.quarantined)])
+        #quarantined = set([util.encodepath(x[:-1]) for x in open(self.proj.quarantined)])
+        quarantined = set([])
 
         dirList = [x for x in dirList if os.path.split(x)[1][:os.path.split(x)[1].index(".")] not in quarantined]
 

@@ -67,7 +67,7 @@ class SelectTargetsMainPanel(wx.Panel):
         except:
             pass
         partition_targets_map = {} # maps {int partitionID: [csvpath_side0, ...]}
-        # TARGET_LOCS_MAP: maps {int partitionID: [CONTEST_i, ...]}, where each
+        # TARGET_LOCS_MAP: maps {int partitionID: {int page: [CONTEST_i, ...]}}, where each
         #     CONTEST_i is: [contestbox, targetbox_i, ...], where each
         #     box := [x1, y1, width, height, id, contest_id, is_contest]
         target_locs_map = {}
@@ -99,7 +99,8 @@ class SelectTargetsMainPanel(wx.Panel):
                             contestbox.x2 - contestbox.x1,
                             contestbox.y2 - contestbox.y1,
                             id_c, contest_id]
-                    target_locs_map.setdefault(partition_idx, []).append(cbox)
+                    curcontest = [] # list [contestbox, targetbox_i, ...]
+                    curcontest.append(cbox)
                     id_c += 1
                     for box in targetboxes:
                         rowT = {'imgpath': imgpath, 'id': id_t,
@@ -110,8 +111,9 @@ class SelectTargetsMainPanel(wx.Panel):
                         rows_targets.append(rowT)
                         tbox = [box.x1, box.y1, box.x2 - box.x1, box.y2 - box.y1,
                                 id_t, contest_id]
-                        target_locs_map[partition_idx].append(tbox)
+                        curcontest.append(tbox)
                         id_t += 1
+                    target_locs_map.setdefault(partition_idx, {}).setdefault(side, []).append(curcontest)
                 writer.writerows(rows_contests + rows_targets)
             partition_targets_map[partition_idx] = csvpaths
         pickle.dump(partition_targets_map, open(pathjoin(self.proj.projdir_path,
