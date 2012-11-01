@@ -147,7 +147,7 @@ class SelectTargetsMainPanel(wx.Panel):
             if id in assocs:
                 assocs[id][1].append(t)
             else:
-                assocs[id] = [c, []]
+                assocs[id] = [c, [t]]
         return assocs
 
 class SelectTargetsPanel(ScrolledPanel):
