@@ -100,7 +100,7 @@ class ConfigPanel(wx.Panel):
         
     def export_results(self):
         """ Create and store the ballot_to_images and image_to_ballot
-        data structures. Also, set the proj.imgsize property.
+        data structures. Also, set the proj.imgsize property. 
         """
         def separate_imgs(voteddir):
             """ Separates images into sets of Ballots.

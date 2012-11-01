@@ -161,7 +161,7 @@ class MainFrame(wx.Frame):
         elif new == MainFrame.QUARANTINE:
             pass
         elif new == MainFrame.PROCESS:
-            pass
+            self.panel_process.start(self.project)
 
     def onClose(self, evt):
         """

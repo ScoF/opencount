@@ -35,12 +35,15 @@ class SelectTargetsMainPanel(wx.Panel):
         # PARTITIONS: dict {int partitionID: [int ballotID_i, ...]}
         partitions_map = pickle.load(open(pathjoin(proj.projdir_path,
                                                    proj.partitions_map), 'rb'))
+        partition_exmpls = pickle.load(open(pathjoin(proj.projdir_path,
+                                                     proj.partition_exmpls), 'rb'))
         b2imgs = pickle.load(open(proj.ballot_to_images, 'rb'))
         img2page = pickle.load(open(pathjoin(proj.projdir_path,
                                              proj.image_to_page), 'rb'))
         # 0.) Munge PARTITIONS_MAP to list of lists of lists
         partitions = []
-        for partitionID, ballotids in partitions_map.iteritems():
+        #for partitionID, ballotids in partitions_map.iteritems():
+        for partitionID, ballotids in partition_exmpls.iteritems():
             partition = []
             for ballotid in ballotids:
                 imgpaths = b2imgs[ballotid]

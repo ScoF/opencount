@@ -17,6 +17,9 @@ import barcode.partition_imgs as partition_imgs
 BALLOT_VENDORS = ("Diebold", "Hart", "Sequoia")
 
 class PartitionMainPanel(wx.Panel):
+    # NUM_EXMPLS: Number of exemplars to grab from each partition
+    NUM_EXMPLS = 5
+
     def __init__(self, parent, *args, **kwargs):
         wx.Panel.__init__(self, parent, *args, **kwargs)
 
@@ -43,30 +46,40 @@ class PartitionMainPanel(wx.Panel):
         """ Export the partitions_map and partitions_invmap, where
         PARTITIONS_MAP maps {partitionID: [int BallotID_i, ...]}, and
         PARTITIONS_INVMAP maps {int BallotID: partitionID}.
+        Also, choose a set of exemplars for each partition and save
+        them as PARTITION_EXMPLS: {partitionID: [int BallotID_i, ...]}
         """
         # partitioning: {(str bc_i, ...): [[imgpath_i, isflip_i, bbs_i, info], ...]}
         # sort by first barcode
         partitioning_sorted = sorted(self.partitionpanel.partitioning.items(), key=lambda t: t[0][0])
         partitions_map = {}
         partitions_invmap = {}
+        partition_exmpls = {}
         image_to_page = {} # maps {str imgpath: int side}
         img2b = pickle.load(open(self.proj.image_to_ballot, 'rb'))
         for partitionID, (bcs, items) in enumerate(partitioning_sorted):
             partition = set()
+            exmpls = set()
             for (imgpath, isflip, bbs, info) in items:
                 ballotid = img2b[imgpath]
                 partition.add(ballotid)
+                if len(exmpls) <= self.NUM_EXMPLS:
+                    exmpls.add(ballotid)
                 partitions_invmap[ballotid] = partitionID
                 image_to_page[imgpath] = info['page']
             partitions_map[partitionID] = list(partition)
+            partition_exmpls[partitionID] = sorted(list(exmpls))
         partitions_map_outP = pathjoin(self.proj.projdir_path, self.proj.partitions_map)
         partitions_invmap_outP = pathjoin(self.proj.projdir_path, self.proj.partitions_invmap)
+        partition_exmpls_outP = pathjoin(self.proj.projdir_path, self.proj.partition_exmpls)
         pickle.dump(partitions_map, open(partitions_map_outP, 'wb'),
                     pickle.HIGHEST_PROTOCOL)
         pickle.dump(partitions_invmap, open(partitions_invmap_outP, 'wb'),
                     pickle.HIGHEST_PROTOCOL)
         pickle.dump(image_to_page, open(pathjoin(self.proj.projdir_path,
                                                  self.proj.image_to_page), 'wb'),
+                    pickle.HIGHEST_PROTOCOL)
+        pickle.dump(partition_exmpls, open(partition_exmpls_outP, 'wb'),
                     pickle.HIGHEST_PROTOCOL)
         
 class PartitionPanel(ScrolledPanel):

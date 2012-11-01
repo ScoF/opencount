@@ -50,6 +50,9 @@ class LabelContest(wx.Panel):
         # PARTITIONS_MAP: {int partitionID: [int ballotID_i, ...]}
         partitions_map = pickle.load(open(pathjoin(self.proj.projdir_path,
                                                    self.proj.partitions_map), 'rb'))
+        # PARTITION_EXMPLS: {int partitionID: [int ballotID_i, ...]}
+        partition_exmpls = pickle.load(open(pathjoin(self.proj.projdir_path,
+                                                     self.proj.partition_exmpls), 'rb'))
         b2imgs = pickle.load(open(self.proj.ballot_to_images, 'rb'))
         img2page = pickle.load(open(pathjoin(self.proj.projdir_path,
                                              self.proj.image_to_page), 'rb'))
@@ -68,7 +71,7 @@ class LabelContest(wx.Panel):
         
         for partitionID, contests_sides in target_locs_map.iteritems():
             # Grab an arbitrary exemplar image from this partition
-            imgpaths = b2imgs[partitions_map[partitionID][0]]
+            imgpaths = b2imgs[partition_exmpls[partitionID][0]]
             imgpaths_ordered = sorted(imgpaths, key=lambda imP: img2page[imP])
             for side, contests in contests_sides.iteritems():
                 exmpl_imP = imgpaths_ordered[side]
@@ -87,7 +90,7 @@ class LabelContest(wx.Panel):
                     # Means this file had no contests, so, add dummy 
                     # values to my data structures
                     # Grab an arbitrary voted ballot from this partition
-                    imgpaths = b2imgs[partitions_map[partitionID]]
+                    imgpaths = b2imgs[partition_exmpls[partitionID][0]]
                     imgpaths_ordered = sorted(imgpaths, key=lambda imP: img2page[imP])
                     self.dirList.append(imgpaths_ordered[side])
                     self.groupedtargets.append([])

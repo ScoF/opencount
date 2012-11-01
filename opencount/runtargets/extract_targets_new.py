@@ -67,6 +67,8 @@ class RunThread(threading.Thread):
     def run(self):
         partitions_map = pickle.load(open(pathjoin(self.proj.projdir_path,
                                                    self.proj.partitions_map), 'rb'))
+        partition_exmpls = pickle.load(open(pathjoin(self.proj.projdir_path,
+                                                     self.proj.partition_exmpls), 'rb'))
         b2imgs = pickle.load(open(self.proj.ballot_to_images, 'rb'))
         img2b = pickle.load(open(self.proj.image_to_ballot, 'rb'))
         img2page = pickle.load(open(pathjoin(self.proj.projdir_path,
@@ -74,7 +76,7 @@ class RunThread(threading.Thread):
         target_locs_map = pickle.load(open(pathjoin(self.proj.projdir_path,
                                                     self.proj.target_locs_map), 'rb'))
         res = doExtract.extract_targets(partitions_map, b2imgs, img2b, img2page,
-                                        target_locs_map,
+                                        target_locs_map, partition_exmpls,
                                         self.proj.extracted_dir,
                                         self.proj.extracted_metadata,
                                         self.proj.ballot_metadata,

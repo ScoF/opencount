@@ -68,12 +68,12 @@ class DefineAttributesPanel(ScrolledPanel):
         
         # BOXES_MAP: {int side: [Box_i, ...]}
         self.boxes_map = None
-        # BALLOTS: [[imgpath_i_front, ...], ...]
-        self.ballots = None
+        # BALLOT_SIDES: [[imgpath_i_front, ...], ...]
+        self.ballot_sides = None
 
         # CUR_SIDE: Which side we're displaying
         self.cur_side = 0
-        # CUR_I: Index into self.BALLOTS[self.CUR_SIDE] that we're displaying
+        # CUR_I: Index into self.BALLOT_SIDES[self.CUR_SIDE] that we're displaying
         self.cur_i = 0
 
         self.stateP = None

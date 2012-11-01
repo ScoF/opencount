@@ -606,6 +606,7 @@ def convertImagesMultiMAP(bal2imgs, tpl2imgs, bal2tpl, img2bal, csvPattern, targ
     return worked
 
 def extract_targets(partitions_map, b2imgs, img2b, img2page, target_locs_map,
+                    partition_exmpls,
                     targetDir, targetMetaDir, imageMetaDir,
                     quarantineCvr, stopped=None):
     """ Target Extraction routine, for the new blankballot-less pipeline.
@@ -616,6 +617,7 @@ def extract_targets(partitions_map, b2imgs, img2b, img2page, target_locs_map,
         dict IMG2PAGE: maps {imgpath: int page}
         dict TARGET_LOCS_MAP: maps {int partitionID: {int page: [[cbox_i, tbox_i, ...], ...]}},
             where each box_i := [x1, y1, w, h, id, contest_id]
+        dict PARTITION_EXMPLS: maps {int partitionID: [int ballotID_i, ...]}
         str TARGETDIR: Dir to store extracted target patches
         str TARGETMETADIR: Dir to store metadata for each target
         str IMAGEMETADIR: Dir to store metadata for each ballot
@@ -652,7 +654,8 @@ def extract_targets(partitions_map, b2imgs, img2b, img2page, target_locs_map,
     for partitionID, ballotIDs in partitions_map.iteritems():
         bbs = get_bbs(partitionID, target_locs_map)
         # 1.a.) Create 'blank ballots'. This might not work so well...
-        blankpaths = b2imgs[ballotIDs[0]]
+        exmpl_id = partition_exmpls[partitionID][0]
+        blankpaths = b2imgs[exmpl_id]
         blankpaths_ordered = sorted(blankpaths, key=lambda imP: img2page[imP])
         for ballotid in ballotIDs:
             imgpaths = b2imgs[ballotid]

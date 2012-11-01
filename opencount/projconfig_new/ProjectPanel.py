@@ -126,6 +126,7 @@ class Project(object):
                      'projdir_path': projdir_path,
                      'voteddir': '',
                      'is_multipage': False,
+                     'partition_exmpls': 'partition_exmpls.p',
                      'partitions_map': 'partitions_map.p',
                      'partitions_invmap': 'partitions_invmap.p',
                      'partition_targets_map': 'partitions_targets_map.p',
@@ -228,7 +229,8 @@ def load_projects(projdir):
             if f == PROJ_FNAME:
                 fullpath = pathjoin(dirpath, f)
                 try:
-                    projects.append(pickle.load(open(fullpath, 'rb')))
+                    proj = pickle.load(open(fullpath, 'rb'))
+                    projects.append(proj)
                 except:
                     pass
     return projects
