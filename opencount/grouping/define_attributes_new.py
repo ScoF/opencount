@@ -4,6 +4,8 @@ try:
 except:
     import pickle
 
+from os.path import join as pathjoin
+
 import wx
 from wx.lib.scrolledpanel import ScrolledPanel
 
@@ -30,18 +32,20 @@ class DefineAttributesMainPanel(wx.Panel):
         self.proj = proj
         self.proj.addCloseEvent(self.defineattrs.save_session)
         b2imgs = pickle.load(open(self.proj.ballot_to_images, 'rb'))
+        img2page = pickle.load(open(pathjoin(self.proj.projdir_path,
+                                             self.proj.image_to_page), 'rb'))
         # 0.) Create the BALLOT_SIDES list of lists:
-        #     [[imgP_i_side0, ...], [imgP_i_side1, ...]]
+        #     [[imgP_i_page0, ...], [imgP_i_page1, ...]]
         ballot_sides = []
         for idx, (ballotid, imgpaths) in enumerate(b2imgs.iteritems()):
             if idx > 5:
                 break
-            for i, imgpath in enumerate(imgpaths):
+            imgpaths_ordered = sorted(imgpaths, key=lambda p: img2page[p])
+            for i, imgpath in enumerate(imgpaths_ordered):
                 if i == len(ballot_sides):
                     ballot_sides.append([imgpath])
                 else:
                     ballot_sides[i].append(imgpath)
-
         self.defineattrs.start(ballot_sides, stateP)
 
     def stop(self):

@@ -44,18 +44,20 @@ class PartitionMainPanel(wx.Panel):
         PARTITIONS_MAP maps {partitionID: [int BallotID_i, ...]}, and
         PARTITIONS_INVMAP maps {int BallotID: partitionID}.
         """
-        # partitioning: {(str bc_i, ...): [[imgpath_i, isflip_i, bbs_i], ...]}
+        # partitioning: {(str bc_i, ...): [[imgpath_i, isflip_i, bbs_i, info], ...]}
         # sort by first barcode
         partitioning_sorted = sorted(self.partitionpanel.partitioning.items(), key=lambda t: t[0][0])
         partitions_map = {}
         partitions_invmap = {}
+        image_to_page = {} # maps {str imgpath: int side}
         img2b = pickle.load(open(self.proj.image_to_ballot, 'rb'))
         for partitionID, (bcs, items) in enumerate(partitioning_sorted):
             partition = set()
-            for (imgpath, isflip, bbs) in items:
+            for (imgpath, isflip, bbs, info) in items:
                 ballotid = img2b[imgpath]
                 partition.add(ballotid)
                 partitions_invmap[ballotid] = partitionID
+                image_to_page[imgpath] = info['page']
             partitions_map[partitionID] = list(partition)
         partitions_map_outP = pathjoin(self.proj.projdir_path, self.proj.partitions_map)
         partitions_invmap_outP = pathjoin(self.proj.projdir_path, self.proj.partitions_invmap)
@@ -63,8 +65,9 @@ class PartitionMainPanel(wx.Panel):
                     pickle.HIGHEST_PROTOCOL)
         pickle.dump(partitions_invmap, open(partitions_invmap_outP, 'wb'),
                     pickle.HIGHEST_PROTOCOL)
-        # TODO: Compute the proj.ballot_to_page data structure, mapping:
-        # {str imgpath: int side}
+        pickle.dump(image_to_page, open(pathjoin(self.proj.projdir_path,
+                                                 self.proj.image_to_page), 'wb'),
+                    pickle.HIGHEST_PROTOCOL)
         
 class PartitionPanel(ScrolledPanel):
     PARTITION_JOBID = util.GaugeID("PartitionJobId")
@@ -73,7 +76,7 @@ class PartitionPanel(ScrolledPanel):
         ScrolledPanel.__init__(self, parent, *args, **kwargs)
         
         self.voteddir = None
-        # PARTITIONING: maps {partitionID: [imgpath_i, ...]}
+        # PARTITIONING: maps {(str bc_i, ...): [[imgpath_i, isflip_i, bbs_i, info], ...]}
         self.partitioning = None
 
         self.init_ui()

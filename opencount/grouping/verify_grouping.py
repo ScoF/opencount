@@ -447,8 +447,6 @@ class RunGroupingPanel(wx.Panel):
         print '..removing previous grouping files...'
         util_gui.remove_files(self.project.grouping_results,
                               pathjoin(projdir,
-                                       self.project.ballot_to_page),
-                              pathjoin(projdir,
                                        'verifygroupstate.p'),
                               pathjoin(projdir,
                                        self.project.digitgroup_results),
@@ -612,8 +610,6 @@ Do you really want to re-run grouping?"""
             projdir = self.project.projdir_path
             util_gui.remove_files(self.project.grouping_results,
                                   pathjoin(projdir,
-                                           self.project.ballot_to_page),
-                                  pathjoin(projdir,
                                            'verifygroupstate.p'),
                                   pathjoin(projdir,
                                            self.project.digitgroup_results),
@@ -766,7 +762,7 @@ def add_flipinfo(project, correctedflips, fields, csvpath):
     writefile.close()
 def fix_ballot_to_images(project, bal2tmp, sample_attrmap, patches, sample_flips):
     """    
-    Creates the 'ballot_to_page' dictionary, which maps voted imgpath
+    Creates the 'image_to_page' dictionary, which maps voted imgpath
     to which 'side' it is on.
     dict bal2tmp: {str ballotid: str templateid}
     dict sample_attrmap: {str ballotid: {str attrtype: int imageorder}}
@@ -781,11 +777,11 @@ def fix_ballot_to_images(project, bal2tmp, sample_attrmap, patches, sample_flips
         # In this case, it is just sample_flips, since for singepage,
         # imageorder '0' is always 'front'
         img2bal = pickle.load(open(pathjoin(project.image_to_ballot), 'rb'))
-        bal2pageP = pathjoin(project.projdir_path, project.ballot_to_page)
-        bal2page = {}
+        img2pageP = pathjoin(project.projdir_path, project.image_to_page)
+        img2page = {}
         for imgpath in img2bal:
-            bal2page[imgpath] = 0
-        pickle.dump(bal2page, open(bal2pageP, 'wb'))
+            img2page[imgpath] = 0
+        pickle.dump(img2page, open(img2pageP, 'wb'))
         return sample_flips
     else:
         b2imgs = pickle.load(open(project.ballot_to_images, 'rb'))

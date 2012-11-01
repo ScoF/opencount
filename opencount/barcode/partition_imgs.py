@@ -22,6 +22,7 @@ except NameError:
     MYDIR = os.path.abspath(sys.path[0])
 
 decode_fns = {'hart': hart.decode}
+info_fns = {'hart': hart.get_info}
 
 def partition_imgs(imgpaths, vendor="hart", queue=None):
     """ Partition the images in IMGPATHS, assuming that the images
@@ -31,7 +32,8 @@ def partition_imgs(imgpaths, vendor="hart", queue=None):
         str vendor: One of 'hart', 'diebold', 'sequoia'.
     Output:
         dict grouping. GROUPING is a dict of the following form:
-            {(barcode_i, ...): [(imgpath_i, isflip_i, bbs_i), ...]}
+            {(barcode_i, ...): [(imgpath_i, isflip_i, bbs_i, dict info), ...]}
+        where INFO is a dict mapping info like 'page', etc. 
     """
     grouping = {} 
     try:
@@ -40,6 +42,7 @@ def partition_imgs(imgpaths, vendor="hart", queue=None):
         print "Error -- VENDOR must be string: ", vendor
         return None
     decode = decode_fns.get(vendor, None)
+    get_info = info_fns.get(vendor, None)
     if not decode:
         print "Unrecognized vendor:", vendor
         return None
@@ -55,9 +58,10 @@ def partition_imgs(imgpaths, vendor="hart", queue=None):
                 queue.put(True)
         except:
             print "Errored on:", imgpath
-            grouping.setdefault((None,), []).append((imgpath, None, None))
+            grouping.setdefault((None,), []).append((imgpath, None, None, None))
             continue
-        grouping.setdefault(barcodes, []).append((imgpath, isflip, bbs))
+        info = get_info(barcodes)
+        grouping.setdefault(barcodes, []).append((imgpath, isflip, bbs, info))
         
     return grouping
 

@@ -178,7 +178,7 @@ class Project(object):
                      'labelattrs_patchesdir': 'labelattrs_patchesdir',
                      'attrexemplars_dir': 'attrexemplars_dir',
                      'multexemplars_map': 'multexemplars_map.p',
-                     'ballot_to_page': 'ballot_to_page.p',
+                     'image_to_page': 'image_to_page.p',
                      'rejected_hashes': 'rejected_hashes.p',
                      'accepted_hashes': 'accepted_hashes.p',
                      'custom_attrs': 'custom_attrs.p',

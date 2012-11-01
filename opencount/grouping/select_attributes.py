@@ -16,6 +16,7 @@ import specify_voting_targets.util_widgets as util_widgets
 import specify_voting_targets.util_gui as util_gui
 import view_overlays, verify_overlays
 import grouping.group_attrs as group_attrs
+import grouping.partask as partask
 
 class SelectAttributesMasterPanel(wx.Panel):
     """ Panel meant to be directly integrated with OpenCount. """
@@ -60,9 +61,13 @@ class SelectAttributesMasterPanel(wx.Panel):
             partitions_map = pickle.load(open(pathjoin(proj.projdir_path,
                                                        proj.partitions_map), 'rb'))
             b2imgs = pickle.load(open(proj.ballot_to_images, 'rb'))
-            blanks = [] # list of [[path_side0, path_side1, ...], ...]
+            img2page = pickle.load(open(pathjoin(proj.projdir_path, proj.image_to_page), 'rb'))
+            blanks = [] # list of [[path_page0, path_page1, ...], ...]
             for partitionID, ballotids in partitions_map.iteritems():
-                blanks.append(b2imgs[ballotids[0]])
+                # Choose an arbitrary voted ballot from this partition
+                imgpaths = b2imgs[ballotids[0]]
+                imgpaths_ordered = sorted(imgpaths, key=lambda imP: img2page[imP])
+                blanks.append(imgpaths_ordered)
             self.mapping, self.inv_mapping = do_extract_attr_patches(proj, blanks)
             self.attrtypes = list(common.get_attrtypes(proj, with_digits=False))
             self.attridx = 0
@@ -662,22 +667,23 @@ class PatchBitmap(util_widgets.CellBitmap):
             dc.SetPen(wx.Pen("Red", 2))
             dc.DrawRectangle(x1, y1, x2-x1, y2-y1)
 
-def do_extract_attr_patches(proj):
+def do_extract_attr_patches(proj, blanks):
     """Extract all attribute patches from all blank ballots into
     the specified outdir. Saves them to:
         <projdir>/extract_attrs_templates/ATTRTYPE/*.png
+    Input:
+        list BLANKS: List of [[imgP_side0, imgP_side1, ...], ...]
     Output:
         (dict mapping, dict inv_mapping, where:
           mapping is {imgpath: {str attrtype: str patchpath}}
           inv_mapping is {str patchpath: (imgpath, attrtype)}
     """
-    tmp2imgs = pickle.load(open(proj.template_to_images, 'rb'))
-    blanks = tmp2imgs.values() # list of ((pathside0, pathside1,...), ...)
     mapping, invmapping, blank2attrpatch, invb2ap = partask.do_partask(extract_attr_patches,
                                                                        blanks,
                                                                        _args=(proj,),
                                                                        combfn=_extract_combfn,
-                                                                       init=({}, {}, {}, {}))
+                                                                       init=({}, {}, {}, {}),
+                                                                       N=1)
     blank2attrpatchP = pathjoin(proj.projdir_path,
                                 proj.blank2attrpatch)
     pickle.dump(blank2attrpatch, open(blank2attrpatchP, 'wb'))
@@ -719,7 +725,6 @@ def extract_attr_patches(blanks, (proj,)):
     """
     outdir = os.path.join(proj.projdir_path,
                           proj.extract_attrs_templates)
-    w_img, h_img = proj.imgsize
     # list of marshall'd attrboxes (i.e. dicts)
     ballot_attributes = pickle.load(open(proj.ballot_attributesfile, 'rb'))
     mapping = {} # maps {imgpath: {str attrtypestr: str patchPath}}
@@ -733,18 +738,16 @@ def extract_attr_patches(blanks, (proj,)):
                     continue
                 imgname =  os.path.split(imgpath)[1]
                 attrside = attr['side']
-                assert type(attrside) == str # 'front' or 'back'
-                attrside = 0 if attrside == 'front' else 1
-                x1 = int(round(attr['x1']*w_img))
-                y1 = int(round(attr['y1']*h_img))
-                x2 = int(round(attr['x2']*w_img))
-                y2 = int(round(attr['y2']*h_img))
+                x1 = attr['x1']
+                y1 = attr['y1']
+                x2 = attr['x2']
+                y2 = attr['y2']
                 attrtype = common.get_attrtype_str(attr['attrs'])
                 if blankside == attrside:
                     # patchP: if outdir is: 'labelattrs_patchesdir',
                     # imgpath is: '/media/data1/election/blanks/foo/1.png',
                     # proj.templatesdir is: '/media/data1/election/blanks/
-                    tmp = proj.templatesdir
+                    tmp = proj.voteddir
                     if not tmp.endswith('/'):
                         tmp += '/'
                     partdir = os.path.split(imgpath[len(tmp):])[0] # foo/
@@ -771,10 +774,8 @@ def extract_attr_patches(blanks, (proj,)):
                             print "    (y1,y2,x1,x2):", (y1,y2,x1,x2)
                             pdb.set_trace()
                         img = cv.LoadImage(imgpath, cv.CV_LOAD_IMAGE_GRAYSCALE)
-                        patch = cv.CreateImage(((x2-x1), (y2-y1)), img.depth, img.channels)
                         cv.SetImageROI(img, (int(x1), int(y1), int(x2-x1), int(y2-y1)))
-                        cv.Copy(img, patch)
-                        cv.SaveImage(patchoutP, patch)
+                        cv.SaveImage(patchoutP, img)
                         
                     mapping.setdefault(imgpath, {})[attrtype] = patchoutP
                     inv_mapping[patchoutP] = (imgpath, attrtype)
