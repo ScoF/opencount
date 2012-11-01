@@ -38,8 +38,9 @@ class MainFrame(wx.Frame):
     SELTARGETS = 7
     LABEL_CONTESTS = 8
     TARGET_EXTRACT = 9
-    QUARANTINE = 10
-    PROCESS = 11
+    SET_THRESHOLD = 10
+    QUARANTINE = 11
+    PROCESS = 12
 
     def __init__(self, parent, *args, **kwargs):
         wx.Frame.__init__(self, parent, *args, **kwargs)
@@ -70,7 +71,7 @@ class MainFrame(wx.Frame):
         self.panel_seltargets = SelectTargetsMainPanel(self.notebook)
         self.panel_label_contests = LabelContest(self.notebook, self.GetSize())
         self.panel_target_extract = TargetExtractPanel(self.notebook)
-        self.panel_set_threshold = tab_wrap(ThresholdPanel)(self.notebook)
+        self.panel_set_threshold = ThresholdPanel(self.notebook, self.GetSize())
         self.panel_quarantine = QuarantinePanel(self.notebook)
         self.panel_process = ResultsPanel(self.notebook)
         self.pages = [(self.panel_projects, "Projects"),
@@ -112,7 +113,9 @@ class MainFrame(wx.Frame):
         elif old == MainFrame.LABEL_CONTESTS:
             pass
         elif old == MainFrame.TARGET_EXTRACT:
-            pass
+            self.panel_target_extract.stop()
+        elif old == MainFrame.SET_THRESHOLD:
+            self.panel_set_threshold.stop()
         elif old == MainFrame.QUARANTINE:
             pass
         elif old == MainFrame.PROCESS:
@@ -150,6 +153,11 @@ class MainFrame(wx.Frame):
             self.SendSizeEvent()
         elif new == MainFrame.TARGET_EXTRACT:
             self.panel_target_extract.start(self.project)
+        elif new == MainFrame.SET_THRESHOLD:
+            sz = self.GetSize()
+            print 'size is:', sz
+            self.panel_set_threshold.start(self.project, size=sz)
+            self.SendSizeEvent()
         elif new == MainFrame.QUARANTINE:
             pass
         elif new == MainFrame.PROCESS:

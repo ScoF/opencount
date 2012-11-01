@@ -661,17 +661,13 @@ class ThresholdPanel(wx.Panel):
         #print "AND SIZE", parent.GetSize()
         self.parent = parent
         self.parent.Fit()
-
-        Publisher().subscribe(self.getproj, "broadcast.project")
     
-    def getproj(self, msg):
-        self.proj = msg.data
-
     def reset_panel(self):
         self.tabOne.reset_panel()
 
     first = True
-    def start(self, size=None):
+    def start(self, proj, size=None):
+        self.proj = proj
 
         if not self.first: return
         self.first = False
@@ -705,3 +701,6 @@ class ThresholdPanel(wx.Panel):
         self.SetSizer(sizer)
         self.Fit()
         self.Refresh()
+        
+    def stop(self):
+        pass

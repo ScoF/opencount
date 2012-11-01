@@ -35,6 +35,9 @@ class TargetExtractPanel(wx.Panel):
     def start(self, proj):
         self.proj = proj
 
+    def stop(self):
+        pass
+
     def onButton_run(self, evt):
         self.Disable()
 
@@ -99,7 +102,7 @@ class RunThread(threading.Thread):
         manager = multiprocessing.Manager()
         queue = manager.Queue()
         start_doandgetAvg(queue, self.proj.extracted_dir, dirList)
-        tmp = []
+        tmp = []  # TMP: [[imgpath, float avg_intensity], ...]
         i = 0
         while i < total:
             result = queue.get()
@@ -110,7 +113,7 @@ class RunThread(threading.Thread):
         wx.CallAfter(Publisher().sendMessage, "signals.MyGauge.nextjob", len(dirList))
         print "Doing a find-longest-prefix thing"
 
-        fulllst = sorted(tmp, key=lambda x: x[1])
+        fulllst = sorted(tmp, key=lambda x: x[1])  # sort by avg. intensity
         fulllst = [(x,int(y)) for x,y in fulllst]
         
         #print "FULLLST:", fulllst
@@ -134,6 +137,7 @@ class RunThread(threading.Thread):
         out = open(self.proj.classified, "w")
         offsets = array.array('L')
         sofar = 0
+        # Store imgpath \0 avg_intensity to output file OUT
         for a,b in fulllst:
             line = a[l:] + "\0" + str(b) + "\n"
             out.write(line)
