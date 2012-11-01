@@ -174,6 +174,10 @@ class SelectTargetsPanel(ScrolledPanel):
         # self.boxes: {int i: [[Box_iFront, ...], ...]}
         self.boxes = {}
 
+        # BOXSIZE: (int w, int h), used to enforce that all voting targets
+        # are the same size.
+        self.boxsize = None
+
         # Sensitivity for Template Matching
         self.tm_param = 0.93
         # Window sizes for Smoothing
@@ -256,6 +260,7 @@ this partition.")
             # 0.) Populate my self.INV_MAP
             self.inv_map = {}
             self.boxes = {}
+            self.boxsize = None
             for i, imgpaths in enumerate(self.partitions):
                 for j, ballot in enumerate(imgpaths):
                     for page, imgpath in enumerate(ballot):
@@ -274,13 +279,15 @@ this partition.")
             state = pickle.load(open(self.stateP, 'rb'))
             self.inv_map = state['inv_map']
             self.boxes = state['boxes']
+            self.boxsize = state['boxsize']
         except:
             return False
         return True
             
     def save_session(self):
         state = {'inv_map': self.inv_map,
-                 'boxes': self.boxes}
+                 'boxes': self.boxes,
+                 'boxsize': self.boxsize}
         pickle.dump(state, open(self.stateP, 'wb'), pickle.HIGHEST_PROTOCOL)
 
     def do_tempmatch(self, box, img):
@@ -359,6 +366,13 @@ this partition.")
                         do_add = False
                         break
                 if do_add:
+                    # 1.b.) Enforce constraint that all voting targets
+                    #       are the same size.
+                    if self.boxsize == None:
+                        self.boxsize = (w, h)
+                    else:
+                        boxB.x2 = boxB.x1 + self.boxsize[0]
+                        boxB.y2 = boxB.y1 + self.boxsize[1]
                     self.boxes.setdefault(partition_idx, [])[page].append(boxB)
         print 'Num boxes in current partition:', len(self.boxes[self.cur_i][self.cur_page])
         self.imagepanel.set_boxes(self.boxes[self.cur_i][self.cur_page])
