@@ -65,7 +65,7 @@ class MainFrame(wx.Frame):
         self.panel_partition = PartitionMainPanel(self.notebook)
         self.panel_define_attrs = DefineAttributesMainPanel(self.notebook)
         self.panel_label_attrs = SelectAttributesMasterPanel(self.notebook)
-        self.panel_label_digitattrs = tab_wrap(LabelDigitsPanel)(self.notebook)
+        self.panel_label_digitattrs = LabelDigitsPanel(self.notebook)
         self.panel_correct_grouping = GroupingMasterPanel(self.notebook)
         self.panel_seltargets = SelectTargetsMainPanel(self.notebook)
         self.panel_label_contests = tab_wrap(LabelContest)(self.notebook)
@@ -104,7 +104,7 @@ class MainFrame(wx.Frame):
         elif old == MainFrame.LABEL_ATTRS:
             self.panel_label_attrs.stop()
         elif old == MainFrame.LABEL_DIGATTRS:
-            pass
+            self.panel_label_digitattrs.stop()
         elif old == MainFrame.CORRECT_GROUPING:
             pass
         elif old == MainFrame.SELTARGETS:
@@ -132,7 +132,7 @@ class MainFrame(wx.Frame):
         elif new == MainFrame.LABEL_ATTRS:
             self.panel_label_attrs.start(self.project)
         elif new == MainFrame.LABEL_DIGATTRS:
-            pass
+            self.panel_label_digitattrs.start(self.project)
         elif new == MainFrame.CORRECT_GROUPING:
             pass
         elif new == MainFrame.SELTARGETS:
