@@ -33,50 +33,49 @@ class ConfigPanel(wx.Panel):
         self.box_samples.txt2 = wx.StaticText(self, label="Voted ballot directory:")
         self.box_samples.txt_samplespath = wx.StaticText(self)
         self.box_samples.sizer.Add(self.box_samples.txt)
+        self.box_samples.sizer.Add((0, 20))
         self.box_samples.sizer.Add(self.box_samples.btn)
+        self.box_samples.sizer.Add((0, 20))
         self.box_samples.sizer.Add(self.box_samples.txt2)
         self.box_samples.sizer.Add(self.box_samples.txt_samplespath)
-        self.box_samples.Fit()
+        self.box_samples.sizer.Add((0, 20))
+
+        self.lower_scroll = wx.ListBox(self) # Voted Skipped ListBox
+        self.lower_scroll.box = wx.StaticBox(self, label="For the voted ballots, the following files were skipped:")
+        sboxsizer0 = wx.StaticBoxSizer(self.lower_scroll.box, orient=wx.VERTICAL)
+        sboxsizer0.Add(self.lower_scroll, 1, flag=wx.EXPAND)
+
+        sizer0 = wx.BoxSizer(wx.HORIZONTAL)
+        sizer0.Add(self.box_samples.sizer, proportion=1, flag=wx.EXPAND)
+        sizer0.Add((50, 0))
+        sizer0.Add(sboxsizer0, proportion=1, flag=wx.EXPAND)
         
-        self.sizer = wx.BoxSizer(wx.VERTICAL)
-        
-        self.top_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        
-        self.lower_left_sizer = wx.BoxSizer(wx.VERTICAL)
-        self.lower_left_sizer.Add(self.box_samples.sizer, flag=wx.EXPAND)
-        self.left_sizer = wx.GridSizer(2, 1, 10, 10)
-        self.left_sizer.Add(self.lower_left_sizer, flag=wx.EXPAND)
-        self.left_sizer.Add((0,100))
         self.is_double_sided = wx.CheckBox(self, -1, label="Double sided ballots.")
-        self.is_double_sided.Bind(wx.EVT_CHECKBOX, self.changeDoubleSided, self.is_double_sided)
-        self.left_sizer.Add(self.is_double_sided)
+        self.is_double_sided.Bind(wx.EVT_CHECKBOX, self.onCheck_doublesided)
+        self.btn_doublesided_opts = wx.Button(self, label="Double Sided Configuration...")
+
+        sizer_doublesided = wx.BoxSizer(wx.HORIZONTAL)
+        sizer_doublesided.AddMany([(self.is_double_sided,), (self.btn_doublesided_opts,)])
         
         self.is_straightened = wx.CheckBox(self, -1, label="Ballots already straightened.")
-        self.is_straightened.Bind(wx.EVT_CHECKBOX, self.onCheck_straightened, self.is_straightened)
-        self.left_sizer.Add(self.is_straightened)
-        
-        self.lower_scroll = wx.ListBox(self)
-        self.lower_scroll.box = wx.StaticBox(self, label="For the voted ballots, the following files were skipped:")
-        self.lower_scroll.sizer = wx.StaticBoxSizer(self.lower_scroll.box, orient=wx.VERTICAL)
-        self.lower_scroll.sizer.Add(self.lower_scroll, 1, flag=wx.EXPAND)
-        self.right_sizer = wx.GridSizer(2, 1, 10, 10)
-        self.right_sizer.Add(self.lower_scroll.sizer, flag=wx.EXPAND)
-        
-        self.top_sizer.Add(self.left_sizer, flag=wx.EXPAND)
-        self.top_sizer.Add((10, 10))
-        self.top_sizer.Add(self.right_sizer, 1, flag=wx.EXPAND)
         
         self.btn_run = wx.Button(self, label="Run sanity check")
         self.btn_run.Bind(wx.EVT_BUTTON, self.onButton_runsanitycheck)
         self.btn_run.box = wx.StaticBox(self)
-        self.btn_run.sizer = wx.StaticBoxSizer(self.btn_run.box, orient=wx.VERTICAL)
-        self.btn_run.sizer.Add(self.btn_run)
-        
-        self.sizer.Add(self.top_sizer, 1, flag=wx.EXPAND)
-        self.sizer.Add(self.btn_run.sizer, flag=wx.EXPAND)
+        sboxsizer1 = wx.StaticBoxSizer(self.btn_run.box, orient=wx.VERTICAL)
+        sboxsizer1.Add(self.btn_run)
+
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.sizer.Add(sizer0)
+        self.sizer.Add((0, 25))
+        self.sizer.Add(sizer_doublesided)
+        self.sizer.Add((0, 25))
+        self.sizer.Add(self.is_straightened)
+        self.sizer.Add((0, 25))
+        self.sizer.Add(sboxsizer1)
         
         self.SetSizer(self.sizer)
-        self.Fit()
+        self.Layout()
 
     def start(self, project, stateP):
         """
@@ -148,25 +147,13 @@ class ConfigPanel(wx.Panel):
                  'is_straightened': self.is_straightened.GetValue()}
         pickle.dump(state, open(stateP, 'wb'))
 
-    def initDoubleSided(self):
-        ds = DoubleSided(self, -1)
-        ds.regex.SetValue("(.*)")
-        ds.finished()
-        ds.Destroy()
-
-    def onCheck_straightened(self, evt):
-        if not self.project.raw_samplesdir:
-            dlg = wx.MessageDialog(self, message="Please select the \
-voted ballots directories first.")
-            self.Disable()
-            dlg.ShowModal()
-            self.Enable()
-            self.is_straightened.SetValue(False)
+    def onCheck_doublesided(self, evt):
+        dlg = DoubleSideDialog(self)
+        status = dlg.ShowModal()
+        if status == wx.ID_CANCEL:
+            self.is_double_sided.SetValue(False)
             return
 
-        val = self.is_straightened.GetValue()
-
-    def changeDoubleSided(self, x):
         val = self.is_double_sided.GetValue()
         self.project.is_multipage = val
         if val:
