@@ -50,12 +50,14 @@ class ConfigPanel(wx.Panel):
         sizer0.Add((50, 0))
         sizer0.Add(sboxsizer0, proportion=1, flag=wx.EXPAND)
         
-        self.is_double_sided = wx.CheckBox(self, -1, label="Double sided ballots.")
-        self.is_double_sided.Bind(wx.EVT_CHECKBOX, self.onCheck_doublesided)
+        self.chkbox_double_sided = wx.CheckBox(self, label="Double sided ballots.")
+        self.chkbox_double_sided.Bind(wx.EVT_CHECKBOX, self.onCheck_doublesided)
         self.btn_doublesided_opts = wx.Button(self, label="Double Sided Configuration...")
+        self.btn_doublesided_opts.Bind(wx.EVT_BUTTON, self.onButton_doublesided_opts)
+        self.btn_doublesided_opts.Disable()
 
         sizer_doublesided = wx.BoxSizer(wx.HORIZONTAL)
-        sizer_doublesided.AddMany([(self.is_double_sided,), (self.btn_doublesided_opts,)])
+        sizer_doublesided.AddMany([(self.chkbox_double_sided,), (self.btn_doublesided_opts,)])
         
         self.is_straightened = wx.CheckBox(self, -1, label="Ballots already straightened.")
         
@@ -99,7 +101,8 @@ class ConfigPanel(wx.Panel):
         
     def export_results(self):
         """ Create and store the ballot_to_images and image_to_ballot
-        data structures. Also, set the proj.imgsize property. 
+        data structures. Also, set the proj.imgsize and proj.is_multipage 
+        properties.
         """
         def separate_imgs(voteddir):
             """ Separates images into sets of Ballots.
@@ -129,13 +132,15 @@ class ConfigPanel(wx.Panel):
         I = cv.LoadImage(imgpaths[0], cv.CV_LOAD_IMAGE_UNCHANGED)
         w, h = cv.GetSize(I)
         self.project.imgsize = (w, h)
+        # 3.) Set project.is_multipage
+        self.project.is_multipage = self.chkbox_double_sided.GetValue()
         
     def restore_session(self, stateP=None):
         try:
             state = pickle.load(open(stateP, 'rb'))
             self.voteddir = state['voteddir']
             self.box_samples.txt_samplespath.SetLabel(self.voteddir)
-            self.is_double_sided.SetValue(state['is_doublesided'])
+            self.chkbox_double_sided.SetValue(state['is_doublesided'])
             self.is_straightened.SetValue(state['is_straightened'])
         except:
             traceback.print_exc()
@@ -143,22 +148,23 @@ class ConfigPanel(wx.Panel):
         return True
     def save_session(self, stateP=None):
         state = {'voteddir': self.voteddir,
-                 'is_doublesided': self.is_double_sided.GetValue(),
+                 'is_doublesided': self.chkbox_double_sided.GetValue(),
                  'is_straightened': self.is_straightened.GetValue()}
         pickle.dump(state, open(stateP, 'wb'))
 
     def onCheck_doublesided(self, evt):
+        if self.chkbox_double_sided.GetValue():
+            # Means we're going from False -> True
+            self.btn_doublesided_opts.Enable()
+        else:
+            self.btn_doublesided_opts.Disable()
+        evt.Skip()
+
+    def onButton_doublesided_opts(self, evt):
         dlg = DoubleSideDialog(self)
         status = dlg.ShowModal()
         if status == wx.ID_CANCEL:
-            self.is_double_sided.SetValue(False)
             return
-
-        val = self.is_double_sided.GetValue()
-        self.project.is_multipage = val
-        if val:
-            ds = DoubleSided(self, -1)
-            ds.Show()
 
     def wrap(self, text):
         res = ""
@@ -215,6 +221,47 @@ class ConfigPanel(wx.Panel):
         thread = threading.Thread(target=sanity_check.sanity_check,
                                   args=(self.voteddir, self))
         thread.start()
+
+class DoubleSideDialog(wx.Dialog):
+    def __init__(self, parent, *args, **kwargs):
+        wx.Dialog.__init__(self, parent, title="Set Double Sided Properties", *args, **kwargs)
+        
+        self.regex = None
+        self.part_exp = None
+        self.is_alternating = None
+
+        txt0 = wx.StaticText(self, label="Enter a regex to match on the file name.")
+        self.regex_txtctrl = wx.TextCtrl(self, value=r"(.*)-(.*)")
+        sizer0 = wx.BoxSizer(wx.HORIZONTAL)
+        sizer0.AddMany([(txt0,), ((10,0),), (self.regex_txtctrl,)])
+
+        txt1 = wx.StaticText(self, label="How to construct the similar portion")
+        self.part_txtctrl = wx.TextCtrl(self, value=r"\1")
+        sizer1 = wx.BoxSizer(wx.HORIZONTAL)
+        sizer1.AddMany([(txt1,), ((10,0),), (self.part_txtctrl,)])
+
+        self.alternate_chkbox = wx.CheckBox(self, label="Ballots alternate front and back")
+
+        btn_done = wx.Button(self, label="Ok")
+        btn_done.Bind(wx.EVT_BUTTON, self.onButton_done)
+        btn_cancel = wx.Button(self, label="Cancel")
+        btn_cancel.Bind(wx.EVT_BUTTON, self.onButton_cancel)
+        btn_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        btn_sizer.AddMany([(btn_done,), (btn_cancel,)])
+
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        sizer.AddMany([(sizer0,), (sizer1,), (self.alternate_chkbox,),
+                       (btn_sizer, 0, wx.ALIGN_CENTER)])
+        self.SetSizer(sizer)
+        self.Layout()
+        
+    def onButton_done(self, evt):
+        self.regex = self.regex_txtctrl.GetValue()
+        self.part_exp = self.part_txtctrl.GetValue()
+        self.is_alternating = self.alternate_chkbox.GetValue()
+        self.EndModal(wx.ID_OK)
+    def onButton_cancel(self, evt):
+        self.EndModal(wx.ID_CANCEL)
 
 class DoubleSided(wx.Frame):
     def __init__(self, parent, id):
@@ -320,3 +367,4 @@ class DoubleSided(wx.Frame):
         pickle.dump(rev_temp, open(self.parent.project.image_to_template, "w"))
 
         self.Destroy()
+
