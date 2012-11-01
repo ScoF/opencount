@@ -155,7 +155,6 @@ class MainFrame(wx.Frame):
             self.panel_target_extract.start(self.project)
         elif new == MainFrame.SET_THRESHOLD:
             sz = self.GetSize()
-            print 'size is:', sz
             self.panel_set_threshold.start(self.project, size=sz)
             self.SendSizeEvent()
         elif new == MainFrame.QUARANTINE:
