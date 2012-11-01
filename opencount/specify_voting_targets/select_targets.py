@@ -36,13 +36,16 @@ class SelectTargetsMainPanel(wx.Panel):
         partitions_map = pickle.load(open(pathjoin(proj.projdir_path,
                                                    proj.partitions_map), 'rb'))
         b2imgs = pickle.load(open(proj.ballot_to_images, 'rb'))
+        img2page = pickle.load(open(pathjoin(proj.projdir_path,
+                                             proj.image_to_page), 'rb'))
         # 0.) Munge PARTITIONS_MAP to list of lists of lists
         partitions = []
         for partitionID, ballotids in partitions_map.iteritems():
             partition = []
             for ballotid in ballotids:
                 imgpaths = b2imgs[ballotid]
-                partition.append(imgpaths)
+                imgpaths_ordered = sorted(imgpaths, key=lambda imP: img2page[imP])
+                partition.append(imgpaths_ordered)
             partitions.append(partition)
 
         self.proj.addCloseEvent(self.seltargets_panel.save_session)
@@ -60,11 +63,14 @@ class SelectTargetsMainPanel(wx.Panel):
             os.makedirs(self.proj.target_locs_dir)
         except:
             pass
+        partition_targets_map = {} # maps {int partitionID: [csvpath_side0, ...]}
         fields = ('imgpath', 'id', 'x', 'y', 'width', 'height', 'label', 'is_contest', 'contest_id')
         for partition_idx, boxes_sides in self.seltargets_panel.boxes.iteritems():
+            csvpaths = []
             for side, boxes in enumerate(boxes_sides):
                 outpath = pathjoin(self.proj.target_locs_dir,
                                    "partition_{0}_side_{1}.csv".format(partition_idx, side))
+                csvpaths.append(outpath)
                 writer = csv.DictWriter(open(outpath, 'wb'), fields)
 
                 # BOX_ASSOCS: dict {int contest_id: [ContestBox, [TargetBox_i, ...]]}
@@ -92,6 +98,10 @@ class SelectTargetsMainPanel(wx.Panel):
                         rows_targets.append(rowT)
                         id_t += 1
                 writer.writerows(rows_contests + rows_targets)
+            partition_targets_map[partition_idx] = csvpaths
+        pickle.dump(partition_targets_map, open(pathjoin(self.proj.projdir_path,
+                                                         self.proj.partition_targets_map), 'wb'),
+                    pickle.HIGHEST_PROTOCOL)
 
     def compute_box_ids(self, boxes):
         """ Given a list of Boxes, some of which are Targets, others

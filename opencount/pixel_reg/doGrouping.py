@@ -49,7 +49,10 @@ def doWriteMAP(finalOrder, Ip, err, attrName, patchDir, metaDir, balKey, exempla
         ...
         int exemplar_idx: Which exemplar attrpatch did this match to?
     """
-    fullpath = encodepath(balKey)
+    # TODO: For now, just use the int ballotID itself, in a flat
+    # dirstruct manner.
+    #fullpath = encodepath(balKey)
+    fullpath = str(balKey)
 
     # - patchDir: write out Ip into patchDir
     Ip[np.isnan(Ip)]=1
@@ -670,7 +673,6 @@ def groupByAttr(bal2imgs, attrName, attrMap, destDir, metaDir, stopped, proj, ve
         bool deleteall: if True, this will first remove all output files
                          before computing.
     """                       
-    
     destDir=destDir+'-'+attrName
     metaDir=metaDir+'-'+attrName
 
@@ -750,6 +752,7 @@ def groupByAttr(bal2imgs, attrName, attrMap, destDir, metaDir, stopped, proj, ve
     # 2.) Generate jobs for the multiprocessing
     jobs=[]
     nProc=sh.numProcs()
+
     #if attrName == 'realmode':
     #    nProc = 1
 
@@ -790,7 +793,7 @@ def groupByAttr(bal2imgs, attrName, attrMap, destDir, metaDir, stopped, proj, ve
     print 'ATTR: ', attrName, ': done'
     return True
 
-def groupImagesMAP(bal2imgs, tpl2imgs, patchesH, destDir, metaDir, stopped, proj, verbose=False, deleteall=True):
+def groupImagesMAP(bal2imgs, patchesH, destDir, metaDir, stopped, proj, verbose=False, deleteall=True):
     """
     Input:
       patchesH: A dict mapping:

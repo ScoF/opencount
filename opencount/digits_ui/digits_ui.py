@@ -1317,10 +1317,9 @@ def do_extract_digitbased_patches(proj):
         imgpaths = bal2imgs[ballotid]
         imgpaths_ordered = sorted(imgpaths, key=lambda imP: img2page[imP])
         tasks.append((ballotid, imgpaths_ordered))
-    w_img, h_img = proj.imgsize
     return partask.do_partask(extract_digitbased_patches,
                               tasks,
-                              _args=(digit_attrtypes, (w_img,h_img), proj),
+                              _args=(digit_attrtypes, proj),
                               combfn=_my_combfn,
                               init={},
                               pass_idx=True,
@@ -1329,9 +1328,8 @@ def do_extract_digitbased_patches(proj):
 def _my_combfn(results, subresults):
     return dict(results.items() + subresults.items())
 
-def extract_digitbased_patches(tasks, (digit_attrtypes, imgsize, proj), idx):
+def extract_digitbased_patches(tasks, (digit_attrtypes, proj), idx):
     i = 0
-    w_img, h_img = imgsize
     outdir = pathjoin(proj.projdir_path, proj.extracted_digitpatch_dir)
     patch2temp = {} # maps {str patchpath: (imgpath, attrtype, bb, str side)}
     for (attrs,x1,y1,x2,y2,side) in digit_attrtypes:

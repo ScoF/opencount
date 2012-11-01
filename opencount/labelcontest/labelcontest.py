@@ -43,10 +43,16 @@ class LabelContest(wx.Panel):
         how the targets are grouped together.
         """
         self.dirList = []
-        # Maps {csvfilepath: str template_imgpath}
-        csvpath_map = pickle.load(open(pathjoin(self.proj.target_locs_dir,
-                                                'csvpath_map.p'),
-                                       'rb'))
+        # Maps {partitionID: [csvpath_side0, ...]}
+        partition_targets_map = pickle.load(open(pathjoin(self.proj.projdir_path,
+                                                          self.proj.partition_targets_map),
+                                                 'rb'))
+        # PARTITIONS_MAP: {int partitionID: [int ballotID_i, ...]}
+        partitions_map = pickle.load(open(pathjoin(self.proj.projdir_path,
+                                                   self.proj.partitions_map), 'rb'))
+        b2imgs = pickle.load(open(self.proj.ballot_to_images, 'rb'))
+        img2page = pickle.load(open(pathjoin(self.proj.projdir_path,
+                                             self.proj.image_to_page), 'rb'))
         thewidth = theheight = None
 
         # groupedtargets is [[[(targetid,contestid,left,up,right,down)]]]
@@ -58,16 +64,19 @@ class LabelContest(wx.Panel):
 
         self.groupedtargets = []
         foo = []
-        for root,dirs,files in sorted(os.walk(self.proj.target_locs_dir)):
-            util.sort_nicely(files)
-            for each in files:
+        #for root,dirs,files in sorted(os.walk(self.proj.target_locs_dir)):
+        for partitionID, csvpaths in partition_targets_map.iteritems():
+            #util.sort_nicely(files)
+            #for each in files:
+            for side, each in enumerate(csvpaths):
         #for each in realorder:
         #    if True:
         #        root = self.proj.target_locs_dir
                 if each[-4:] != '.csv': continue
                 foo.append(each)
                 gr = {}
-                name = os.path.join(root, each)
+                #name = os.path.join(root, each)
+                name = each
                 for i, row in enumerate(csv.reader(open(name))):
                     if i == 0:
                         # skip the header row, to avoid adding header
@@ -91,7 +100,10 @@ class LabelContest(wx.Panel):
                 if not lst:
                     # Means this file had no contests, so, add dummy 
                     # values to my data structures
-                    self.dirList.append(csvpath_map[pathjoin(root, each)])
+                    # Grab an arbitrary voted ballot from this partition
+                    imgpaths = b2imgs[partitions_map[partitionID]]
+                    imgpaths_ordered = sorted(imgpaths, key=lambda imP: img2page[imP])
+                    self.dirList.append(imgpaths_ordered[side])
                     self.groupedtargets.append([])
                     continue
                 # Figure out where the columns are.
@@ -353,7 +365,7 @@ class LabelContest(wx.Panel):
         button6.Bind(wx.EVT_BUTTON, addmultibox)
         template.Add(button6)
 
-        if self.proj.options.devmode:
+        if self.proj.devmode:
             button5 = wx.Button(self, label="Magic \"I'm Done\" Button")
             def declareReady(x):
                 dlg = wx.MessageDialog(None, "Are you sure?\nThis will destroy all text you have entered.", style=wx.YES_NO | wx.NO_DEFAULT)
@@ -391,7 +403,6 @@ class LabelContest(wx.Panel):
         self.Fit()
  
         self.Show()
-
 
     def load_languages(self):
         if not os.path.exists(self.proj.patch_loc_dir): return {}

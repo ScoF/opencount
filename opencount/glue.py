@@ -68,7 +68,7 @@ class MainFrame(wx.Frame):
         self.panel_label_digitattrs = LabelDigitsPanel(self.notebook)
         self.panel_correct_grouping = GroupingMasterPanel(self.notebook)
         self.panel_seltargets = SelectTargetsMainPanel(self.notebook)
-        self.panel_label_contests = tab_wrap(LabelContest)(self.notebook)
+        self.panel_label_contests = LabelContest(self.notebook, self.GetSize())
         self.panel_target_extract = TargetExtractPanel(self.notebook)
         self.panel_set_threshold = tab_wrap(ThresholdPanel)(self.notebook)
         self.panel_quarantine = QuarantinePanel(self.notebook)
@@ -106,7 +106,7 @@ class MainFrame(wx.Frame):
         elif old == MainFrame.LABEL_DIGATTRS:
             self.panel_label_digitattrs.stop()
         elif old == MainFrame.CORRECT_GROUPING:
-            pass
+            self.panel_correct_grouping.stop()
         elif old == MainFrame.SELTARGETS:
             self.panel_seltargets.stop()
         elif old == MainFrame.LABEL_CONTESTS:
@@ -134,7 +134,7 @@ class MainFrame(wx.Frame):
         elif new == MainFrame.LABEL_DIGATTRS:
             self.panel_label_digitattrs.start(self.project)
         elif new == MainFrame.CORRECT_GROUPING:
-            pass
+            self.panel_correct_grouping.start(self.project)
         elif new == MainFrame.SELTARGETS:
             self.panel_seltargets.start(self.project, pathjoin(self.project.projdir_path,
                                                                '_state_seltargets.p'),
@@ -145,7 +145,8 @@ class MainFrame(wx.Frame):
                 proj.patch_loc_dir -- For language, and *something* else.
             """
             self.panel_label_contests.proj = self.project
-            self.panel_label_contests.start(self.GetSize())
+            sz = self.GetSize()
+            self.panel_label_contests.start(sz)
             self.SendSizeEvent()
         elif new == MainFrame.TARGET_EXTRACT:
             self.panel_target_extract.start(self.project)

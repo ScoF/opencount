@@ -605,16 +605,15 @@ def convertImagesMultiMAP(bal2imgs, tpl2imgs, bal2tpl, img2bal, csvPattern, targ
         quarantineCheckMAP(jobs,targetDiffDir,quarantineCvr,project, img2bal, imageMetaDir=imageMetaDir)
     return worked
 
-def extract_targets(partitions_map, b2imgs, img2b, bal2page,
+def extract_targets(partitions_map, b2imgs, img2b, img2page,
                     targetDir, targetMetaDir, imageMetaDir,
                     quarantineCvr, stopped=None):
     """ Target Extraction routine, for the new blankballot-less pipeline.
     Input:
-        dict PARTITIONS_MAP: maps {partitionID: [(imgpath_i, isflip, bbs_i), ...)}, where each
-            IMGPATH_i is the first page of each Ballot. 
+        dict PARTITIONS_MAP: maps {partitionID: [int ballotID_i, ...]}
         dict B2IMGS: maps {int ballotID: (imgpath_i, ...)}
         dict IMG2B: maps {imgpath: int ballotID}
-        dict BAL2PAGE: maps {imgpath: int page}
+        dict IMG2PAGE: maps {imgpath: int page}
         str TARGETDIR: Dir to store extracted target patches
         str TARGETMETADIR: Dir to store metadata for each target
         str IMAGEMETADIR: Dir to store metadata for each ballot
@@ -632,12 +631,13 @@ def extract_targets(partitions_map, b2imgs, img2b, bal2page,
     # 0.) Create 'blank' ballots
     blankpaths = []
     for partitionID, items in partitions_map.iteritems():
-        exmpl = items[0][0]
-        ballot_imgpaths = b2imgs[img2b[exmpl]]
-        blankpaths.append(ballot_imgpaths)
+        imgpaths = b2imgs[items[0]]
+        imgpaths_ordered = sorted(imgpaths, key=lambda imP: img2page[imP])
+        blankpaths.append(imgpaths_ordered)
     # 1.) Create jobs
     for ballotID, imgpaths in b2imgs.iteritems():
-        imgpaths_ordered = fix_ballot_order(imgpaths, bal2page=bal2page)
+        imgpaths_ordered = sorted(imgpaths, key=lambda imP: img2page[imP])
+        bbs = foo()  # TODO: DO THIS
         job = [blankpaths, bbs, imgpaths_ordered, targetDir, 
                targetDiffDir, targetMetaDir, imageMetaDir]
         jobs.append(job)

@@ -76,6 +76,7 @@ class SelectAttributesMasterPanel(wx.Panel):
     def stop(self):
         self.save_boxes()
         self.save_session()
+        self.export_results()
 
     def load_session(self):
         """ Attempts to restore a previously-stored state. Returns True if
@@ -109,8 +110,8 @@ class SelectAttributesMasterPanel(wx.Panel):
         return True
 
     def export_results(self):
-        """ Saves the attribute labelling results to .csv files in:
-            proj.patch_loc_dir
+        """ Saves the attribute labelling results to .csv files to
+        proj.patch_loc_dir. Also, computes multiple exemplars.
         """
         if not self.boxes:
             return
@@ -145,6 +146,9 @@ class SelectAttributesMasterPanel(wx.Panel):
                 writer.writerow(row)
                 uid += 1
             f.close()
+        outdir = os.path.join(self.project.projdir_path,
+                              self.project.attrexemplars_dir)
+        self.cluster_attr_patches(outdir)
 
     def cluster_attr_patches(self, outdir):
         """ Try to discover multiple exemplars within the blank ballot
@@ -204,7 +208,6 @@ class SelectAttributesMasterPanel(wx.Panel):
         
         boxes = {}
         patchpaths = []
-        w_img, h_img = self.project.imgsize
         # 1.) Populate the PATCHPATHS list
         for patchpath, (imgpath, attrtype) in self.inv_mapping.iteritems():
             if attrtype == curattrtype:
@@ -218,7 +221,6 @@ class SelectAttributesMasterPanel(wx.Panel):
                 # expects coords to be wrt patch. Do a correction.
                 x = common.get_attr_prop(self.project, attrtype, 'x1')
                 y = common.get_attr_prop(self.project, attrtype, 'y1')
-                x, y = int(round(x * w_img)), int(round(y * h_img))
                 x1_off, y1_off = x1 - x, y1 - y
                 x2_off, y2_off = x2 - x, y2 - y
                 boxes.setdefault(patchpath, []).append(((x1_off,y1_off,x2_off,y2_off), attrval, subpatchP))
@@ -234,12 +236,10 @@ class SelectAttributesMasterPanel(wx.Panel):
         """
         if not self.selectattrs.boxes:
             return
-        w_img, h_img = self.project.imgsize
         for patchpath, boxes in self.selectattrs.boxes.iteritems():
             imgpath, attrtype = self.inv_mapping[patchpath]
             x = common.get_attr_prop(self.project, attrtype, 'x1')
             y = common.get_attr_prop(self.project, attrtype, 'y1')
-            x, y = int(round(x * w_img)), int(round(y * h_img))
             # Replace all entries in self.BOXES for ATTRTYPE with 
             # entries in self.SELECTATTRS.BOXES
             self.boxes.setdefault(imgpath, [])
@@ -428,10 +428,8 @@ class AttrMosaicPanel(util_widgets.ImageMosaicPanel):
         outfilepath = pathjoin(outrootdir, "{0}_{1}.png".format(attrval, i))
         cv.SaveImage(outfilepath, patch)
         cv.SaveImage("_selectattr_patch.png", patch)
-        w_img, h_img = self.GetParent().GetParent().GetParent().project.imgsize
         x = common.get_attr_prop(self.GetParent().GetParent().GetParent().project, attrtype, 'x1')
         y = common.get_attr_prop(self.GetParent().GetParent().GetParent().project, attrtype, 'y1')
-        x, y = int(round(x * w_img)), int(round(y * h_img))
         bb_off = bb[0]+x, bb[1]+y, bb[2]+x, bb[3]+y
         blankpath, _ = self.GetParent().GetParent().GetParent().inv_mapping[patchpath]
         self.GetParent().GetParent().GetParent().usersel_exs.setdefault(attrtype, []).append((attrval, i, outfilepath, blankpath, bb_off))
@@ -770,7 +768,6 @@ def extract_attr_patches(blanks, (proj,)):
                         # OpenCV: ~0.06s
                         if abs(y1-y2) == 0 or abs(x1-x2) == 0:
                             print "Uh oh, about to crash. Why is this happening?"
-                            print "    proj.imgsize:", proj.imgsize
                             print "    (y1,y2,x1,x2):", (y1,y2,x1,x2)
                             pdb.set_trace()
                         img = cv.LoadImage(imgpath, cv.CV_LOAD_IMAGE_GRAYSCALE)
