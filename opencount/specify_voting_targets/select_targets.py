@@ -69,7 +69,7 @@ class SelectTargetsMainPanel(wx.Panel):
         partition_targets_map = {} # maps {int partitionID: [csvpath_side0, ...]}
         # TARGET_LOCS_MAP: maps {int partitionID: {int page: [CONTEST_i, ...]}}, where each
         #     CONTEST_i is: [contestbox, targetbox_i, ...], where each
-        #     box := [x1, y1, width, height, id, contest_id, is_contest]
+        #     box := [x1, y1, width, height, id, contest_id]
         target_locs_map = {}
         fields = ('imgpath', 'id', 'x', 'y', 'width', 'height', 'label', 'is_contest', 'contest_id')
         for partition_idx, boxes_sides in self.seltargets_panel.boxes.iteritems():
@@ -516,6 +516,9 @@ this partition.")
             self.boxes[partition_idx][page] = justtargets+contest_boxes
         # 2.) Update self.IMAGEPANEL.BOXES (i.e. the UI)
         self.imagepanel.set_boxes(self.boxes[self.cur_i][self.cur_page])
+        # 3.) Finally, update the self.proj.infer_bounding_boxes flag, 
+        #     so that LabelContests does the right thing.
+        self.GetParent().proj.infer_bounding_boxes = True
         self.Refresh()
 
 class Toolbar(wx.Panel):
