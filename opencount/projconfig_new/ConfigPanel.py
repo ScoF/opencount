@@ -1,4 +1,4 @@
-import os, sys, pdb, traceback
+import os, sys, pdb, traceback, re
 from os.path import join as pathjoin
 try:
     import cPickle as pickle
@@ -52,11 +52,14 @@ class ConfigPanel(wx.Panel):
         
         txt_numpages = wx.StaticText(self, label="Number of pages: ")
         self.numpages_txtctrl = wx.TextCtrl(self, value="2")
+        self.varnumpages_chkbox = wx.CheckBox(self, label="Variable Number of Pages: ")
+        self.varnumpages_chkbox.Bind(wx.EVT_CHECKBOX, self.onCheckBox_varnumpages)
         sizer_numpages = wx.BoxSizer(wx.HORIZONTAL)
-        sizer_numpages.AddMany([(txt_numpages,), ((10,0),), (self.numpages_txtctrl,)])
+        sizer_numpages.AddMany([(txt_numpages,), ((10,0),), (self.numpages_txtctrl,),
+                                ((10,0),), (self.varnumpages_chkbox,)])
         
         txt_regex = wx.StaticText(self, label="Enter a regex to match on the filename.")
-        self.regex_txtctrl = wx.TextCtrl(self, value=r".*-(.*)")
+        self.regex_txtctrl = wx.TextCtrl(self, value=r".*_.*_.*_(.*_.*)\.[a-zA-Z]*")
         sizer_regex = wx.BoxSizer(wx.HORIZONTAL)
         sizer_regex.AddMany([(txt_regex,), ((10,0),), (self.regex_txtctrl,)])
 
@@ -122,8 +125,9 @@ class ConfigPanel(wx.Panel):
             """
             ballots = []
             for dirpath, dirnames, filenames in os.walk(voteddir):
-                imgnames_ordered = util.sorted_nicely([f for f in filenames if util.is_image_ext(f)])
+                imgnames = [f for f in filenames if util.is_image_ext(f)]
                 if is_alternating:
+                    imgnames_ordered = util.sorted_nicely(imgnames)
                     if len(imgnames_ordered) % num_pages != 0:
                         print "Uh oh -- there are {0} images in directory {1}, \
 which isn't divisible by num_pages {2}".format(len(imgnames_ordered), dirpath, num_pages)
@@ -137,23 +141,22 @@ which isn't divisible by num_pages {2}".format(len(imgnames_ordered), dirpath, n
                             curballot.append(imgpath)
                         ballots.append(curballot)
                 elif num_pages == 1:
-                    for imgname in imgnames_ordered:
+                    for imgname in imgnames:
                         imgpath = pathjoin(dirpath, imgname)
                         ballots.append([imgpath])
                 else:
                     i = 0
                     pat = re.compile(regex)
-                    while i < len(imgnames_ordered):
-                        imgpath = pathjoin(dirpath, imgnames_ordered[i])
-                        matches = [(pat.match(imP), idx) for idx, imP in enumerate(imgnames_ordered[1:])]
+                    while i < len(imgnames):
+                        imgpath = pathjoin(dirpath, imgnames[i])
+                        matches = [(pat.match(imP), idx) for idx, imP in enumerate(imgnames[i:])]
                         matches = [(mat, idx) for (mat, idx) in matches if mat != None]
                         ballotpairs = [] # [(imgpath, portion), ...]
                         for (mat, idx) in matches:
-                            sistername = imgnames_ordered[idx]
+                            sistername = imgnames[idx]
                             sisterpath = pathjoin(dirpath, sistername)
                             portion = mat.groups()[0]
-                            ballotpaths.append((sisterpath, portion))
-                            imgnames_ordered.pop(idx)
+                            ballotpairs.append((sisterpath, portion))
                         curballot = [t[0] for t in sorted(ballotpairs, key=lambda t: t[1])]
                         ballots.append(curballot)
                         i += 1
@@ -164,7 +167,7 @@ which isn't divisible by num_pages {2}".format(len(imgnames_ordered), dirpath, n
         by_ballots = separate_imgs(self.voteddir, int(self.numpages_txtctrl.GetValue()),
                                    regex=self.regex_txtctrl.GetValue(),
                                    is_alternating=self.alternate_chkbox.GetValue())
-        print by_ballots
+        print by_ballots[:10]
         for id, imgpaths in enumerate(by_ballots):
             ballot_to_images[id] = imgpaths
             for imgpath in imgpaths:
@@ -174,7 +177,7 @@ which isn't divisible by num_pages {2}".format(len(imgnames_ordered), dirpath, n
         # 2.) Set project.voteddir
         self.project.voteddir = self.voteddir
         # 3.) Set project.imgsize, assuming that all image dimensions are the same
-        I = cv.LoadImage(imgpaths[0], cv.CV_LOAD_IMAGE_UNCHANGED)
+        I = cv.LoadImage(image_to_ballot.keys()[0], cv.CV_LOAD_IMAGE_UNCHANGED)
         w, h = cv.GetSize(I)
         self.project.imgsize = (w, h)
         # 4.) Set project.is_multipage
@@ -192,8 +195,11 @@ which isn't divisible by num_pages {2}".format(len(imgnames_ordered), dirpath, n
             self.box_samples.txt_samplespath.SetLabel(self.voteddir)
             self.is_straightened.SetValue(state['is_straightened'])
             self.numpages_txtctrl.SetValue(str(state['num_pages']))
+            self.varnumpages_chkbox.SetValue(state['varnumpages'])
             self.regex_txtctrl.SetValue(state['regex'])
             self.alternate_chkbox.SetValue(state['is_alternating'])
+            if self.varnumpages_chkbox.GetValue():
+                self.numpages_txtctrl.Disable()
             if self.alternate_chkbox.GetValue():
                 self.regex_txtctrl.Disable()
         except:
@@ -204,6 +210,7 @@ which isn't divisible by num_pages {2}".format(len(imgnames_ordered), dirpath, n
         state = {'voteddir': self.voteddir,
                  'is_straightened': self.is_straightened.GetValue(),
                  'num_pages': int(self.numpages_txtctrl.GetValue()),
+                 'varnumpages': self.varnumpages_chkbox.GetValue(),
                  'regex': self.regex_txtctrl.GetValue(),
                  'is_alternating': self.alternate_chkbox.GetValue()}
         pickle.dump(state, open(stateP, 'wb'))
@@ -270,6 +277,12 @@ which isn't divisible by num_pages {2}".format(len(imgnames_ordered), dirpath, n
             self.regex_txtctrl.Disable()
         else:
             self.regex_txtctrl.Enable()
+
+    def onCheckBox_varnumpages(self, evt):
+        if self.varnumpages_chkbox.GetValue():
+            self.numpages_txtctrl.Disable()
+        else:
+            self.numpages_txtctrl.Enable()
 
 class DoubleSideDialog(wx.Dialog):
     def __init__(self, parent, *args, **kwargs):
