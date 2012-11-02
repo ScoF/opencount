@@ -21,6 +21,11 @@ class ConfigPanel(wx.Panel):
         self.project = None
         self.voteddir = ""
 
+        # Double-sided options
+        self.ds_regex = None
+        self.ds_partexp = None
+        self.ds_is_alternating = None
+
         # HOOKFN: Just a callback function to pass to Project.closehooks
         self._hookfn = None
         
@@ -96,15 +101,15 @@ class ConfigPanel(wx.Panel):
     def stop(self):
         self.save_session(stateP=self.stateP)
         self.project.removeCloseEvent(self._hookfn)
-        self.project.voteddir = self.voteddir
         self.export_results()
         
     def export_results(self):
         """ Create and store the ballot_to_images and image_to_ballot
-        data structures. Also, set the proj.imgsize and proj.is_multipage 
-        properties.
+        data structures. Also, set the proj.voteddir, proj.imgsize, and
+        proj.is_multipage properties.
         """
-        def separate_imgs(voteddir):
+        def separate_imgs(voteddir, is_multipage, regex=None, partexp=None,
+                          is_alternating=None):
             """ Separates images into sets of Ballots.
             Input:
                 str VOTEDDIR: Root directory of voted ballots.
@@ -114,7 +119,8 @@ class ConfigPanel(wx.Panel):
             """
             ballots = []
             for dirpath, dirnames, filenames in os.walk(voteddir):
-                for imgname in [f for f in filenames if util.is_image_ext(f)]:
+                imgnames_ordered = util.sorted_nicely([f for f in filenames if util.is_image_ext(f)])
+                for imgname in imgnames_ordered:
                     imgpath = pathjoin(dirpath, imgname)
                     # TODO: Generalize to multi-page.
                     ballots.append([imgpath])
@@ -122,17 +128,22 @@ class ConfigPanel(wx.Panel):
         # BALLOT_TO_IMAGES: maps {int ballotID: [imgpath_side0, imgpath_side1, ...]}
         ballot_to_images = {}
         image_to_ballot = {} # maps {imgpath: int ballotID}
-        for id, imgpaths in enumerate(separate_imgs(self.voteddir)):
+        by_ballots = separate_imgs(self.voteddir, self.chkbox_double_sided.GetValue(),
+                                   regex=self.ds_regex, part=self.ds_partexp,
+                                   is_alternating=self.ds_is_alternating)
+        for id, imgpaths in enumerate(by_ballots):
             ballot_to_images[id] = imgpaths
             for imgpath in imgpaths:
                 image_to_ballot[imgpath] = id
         pickle.dump(ballot_to_images, open(self.project.ballot_to_images, 'wb'), pickle.HIGHEST_PROTOCOL)
         pickle.dump(image_to_ballot, open(self.project.image_to_ballot, 'wb'), pickle.HIGHEST_PROTOCOL)
-        # 2.) Set project.imgsize, assuming that all image dimensions are the same
+        # 2.) Set project.voteddir
+        self.project.voteddir = self.voteddir
+        # 3.) Set project.imgsize, assuming that all image dimensions are the same
         I = cv.LoadImage(imgpaths[0], cv.CV_LOAD_IMAGE_UNCHANGED)
         w, h = cv.GetSize(I)
         self.project.imgsize = (w, h)
-        # 3.) Set project.is_multipage
+        # 4.) Set project.is_multipage
         self.project.is_multipage = self.chkbox_double_sided.GetValue()
         
     def restore_session(self, stateP=None):
@@ -142,6 +153,9 @@ class ConfigPanel(wx.Panel):
             self.box_samples.txt_samplespath.SetLabel(self.voteddir)
             self.chkbox_double_sided.SetValue(state['is_doublesided'])
             self.is_straightened.SetValue(state['is_straightened'])
+            self.ds_regex = state['ds_regex']
+            self.ds_partexp = state['ds_partexp']
+            self.ds_is_alternating = state['ds_is_alternating']
         except:
             traceback.print_exc()
             return False
@@ -149,7 +163,10 @@ class ConfigPanel(wx.Panel):
     def save_session(self, stateP=None):
         state = {'voteddir': self.voteddir,
                  'is_doublesided': self.chkbox_double_sided.GetValue(),
-                 'is_straightened': self.is_straightened.GetValue()}
+                 'is_straightened': self.is_straightened.GetValue(),
+                 'ds_regex': self.ds_regex,
+                 'ds_partexp': self.ds_partexp,
+                 'ds_is_alternating': self.ds_is_alternating}
         pickle.dump(state, open(stateP, 'wb'))
 
     def onCheck_doublesided(self, evt):
@@ -165,6 +182,9 @@ class ConfigPanel(wx.Panel):
         status = dlg.ShowModal()
         if status == wx.ID_CANCEL:
             return
+        self.ds_regex = dlg.regex
+        self.ds_partexp = dlg.partexp
+        self.ds_is_alternating = dlg.is_alternating
 
     def wrap(self, text):
         res = ""
@@ -227,7 +247,7 @@ class DoubleSideDialog(wx.Dialog):
         wx.Dialog.__init__(self, parent, title="Set Double Sided Properties", *args, **kwargs)
         
         self.regex = None
-        self.part_exp = None
+        self.partexp = None
         self.is_alternating = None
 
         txt0 = wx.StaticText(self, label="Enter a regex to match on the file name.")
@@ -257,7 +277,7 @@ class DoubleSideDialog(wx.Dialog):
         
     def onButton_done(self, evt):
         self.regex = self.regex_txtctrl.GetValue()
-        self.part_exp = self.part_txtctrl.GetValue()
+        self.partexp = self.part_txtctrl.GetValue()
         self.is_alternating = self.alternate_chkbox.GetValue()
         self.EndModal(wx.ID_OK)
     def onButton_cancel(self, evt):
