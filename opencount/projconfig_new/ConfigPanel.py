@@ -21,11 +21,6 @@ class ConfigPanel(wx.Panel):
         self.project = None
         self.voteddir = ""
 
-        # Double-sided options
-        self.ds_num_pages = None
-        self.ds_regex = None
-        self.ds_is_alternating = None
-
         # HOOKFN: Just a callback function to pass to Project.closehooks
         self._hookfn = None
         
@@ -55,14 +50,22 @@ class ConfigPanel(wx.Panel):
         sizer0.Add((50, 0))
         sizer0.Add(sboxsizer0, proportion=1, flag=wx.EXPAND)
         
-        self.chkbox_double_sided = wx.CheckBox(self, label="Double sided ballots.")
-        self.chkbox_double_sided.Bind(wx.EVT_CHECKBOX, self.onCheck_doublesided)
-        self.btn_doublesided_opts = wx.Button(self, label="Double Sided Configuration...")
-        self.btn_doublesided_opts.Bind(wx.EVT_BUTTON, self.onButton_doublesided_opts)
-        self.btn_doublesided_opts.Disable()
+        txt_numpages = wx.StaticText(self, label="Number of pages: ")
+        self.numpages_txtctrl = wx.TextCtrl(self, value="2")
+        sizer_numpages = wx.BoxSizer(wx.HORIZONTAL)
+        sizer_numpages.AddMany([(txt_numpages,), ((10,0),), (self.numpages_txtctrl,)])
+        
+        txt_regex = wx.StaticText(self, label="Enter a regex to match on the filename.")
+        self.regex_txtctrl = wx.TextCtrl(self, value=r".*-(.*)")
+        sizer_regex = wx.BoxSizer(wx.HORIZONTAL)
+        sizer_regex.AddMany([(txt_regex,), ((10,0),), (self.regex_txtctrl,)])
 
-        sizer_doublesided = wx.BoxSizer(wx.HORIZONTAL)
-        sizer_doublesided.AddMany([(self.chkbox_double_sided,), (self.btn_doublesided_opts,)])
+        self.alternate_chkbox = wx.CheckBox(self, label="Ballots alternate front and back")
+        self.alternate_chkbox.Bind(wx.EVT_CHECKBOX, self.onCheckBox_alternate)
+
+        sizer_doublesided = wx.BoxSizer(wx.VERTICAL)
+        sizer_doublesided.AddMany([(sizer_numpages,), (sizer_regex,),
+                                   (self.alternate_chkbox,)])
         
         self.is_straightened = wx.CheckBox(self, -1, label="Ballots already straightened.")
         
@@ -105,8 +108,8 @@ class ConfigPanel(wx.Panel):
         
     def export_results(self):
         """ Create and store the ballot_to_images and image_to_ballot
-        data structures. Also, set the proj.voteddir, proj.imgsize, and
-        proj.is_multipage properties.
+        data structures. Also, set the proj.voteddir, proj.imgsize,
+        proj.is_multipage, and proj.num_pages properties.
         """
         def separate_imgs(voteddir, num_pages, regex=None,
                           is_alternating=None):
@@ -126,10 +129,11 @@ class ConfigPanel(wx.Panel):
 which isn't divisible by num_pages {2}".format(len(imgnames_ordered), dirpath, num_pages)
                         pdb.set_trace()
                         raise RuntimeError
-                    for i, imgname in enumerate(imgnames_ordered[::num_pages]):
+                    i = 0
+                    while imgnames_ordered:
                         curballot = []
                         for j in xrange(num_pages):
-                            imgpath = pathjoin(dirpath, imgnames_ordered[i+j])
+                            imgpath = pathjoin(dirpath, imgnames_ordered.pop(0))
                             curballot.append(imgpath)
                         ballots.append(curballot)
                 elif num_pages == 1:
@@ -157,9 +161,10 @@ which isn't divisible by num_pages {2}".format(len(imgnames_ordered), dirpath, n
         # BALLOT_TO_IMAGES: maps {int ballotID: [imgpath_side0, imgpath_side1, ...]}
         ballot_to_images = {}
         image_to_ballot = {} # maps {imgpath: int ballotID}
-        by_ballots = separate_imgs(self.voteddir, self.num_pages,
-                                   regex=self.ds_regex,
-                                   is_alternating=self.ds_is_alternating)
+        by_ballots = separate_imgs(self.voteddir, int(self.numpages_txtctrl.GetValue()),
+                                   regex=self.regex_txtctrl.GetValue(),
+                                   is_alternating=self.alternate_chkbox.GetValue())
+        print by_ballots
         for id, imgpaths in enumerate(by_ballots):
             ballot_to_images[id] = imgpaths
             for imgpath in imgpaths:
@@ -173,49 +178,35 @@ which isn't divisible by num_pages {2}".format(len(imgnames_ordered), dirpath, n
         w, h = cv.GetSize(I)
         self.project.imgsize = (w, h)
         # 4.) Set project.is_multipage
-        if self.num_pages >= 2:
+        if int(self.numpages_txtctrl.GetValue()) >= 2:
             self.project.is_multipage = True
         else:
             self.project.is_multipage = False
+        # 5.) Set project.num_pages
+        self.project.num_pages = int(self.numpages_txtctrl.GetValue())
         
     def restore_session(self, stateP=None):
         try:
             state = pickle.load(open(stateP, 'rb'))
             self.voteddir = state['voteddir']
             self.box_samples.txt_samplespath.SetLabel(self.voteddir)
-            self.chkbox_double_sided.SetValue(state['is_doublesided'])
             self.is_straightened.SetValue(state['is_straightened'])
-            self.ds_num_pages = state['ds_num_pages']
-            self.ds_regex = state['ds_regex']
-            self.ds_is_alternating = state['ds_is_alternating']
+            self.numpages_txtctrl.SetValue(str(state['num_pages']))
+            self.regex_txtctrl.SetValue(state['regex'])
+            self.alternate_chkbox.SetValue(state['is_alternating'])
+            if self.alternate_chkbox.GetValue():
+                self.regex_txtctrl.Disable()
         except:
+            traceback.print_exc()
             return False
         return True
     def save_session(self, stateP=None):
         state = {'voteddir': self.voteddir,
-                 'is_doublesided': self.chkbox_double_sided.GetValue(),
                  'is_straightened': self.is_straightened.GetValue(),
-                 'ds_num_pages': self.ds_num_pages,
-                 'ds_regex': self.ds_regex,
-                 'ds_is_alternating': self.ds_is_alternating}
+                 'num_pages': int(self.numpages_txtctrl.GetValue()),
+                 'regex': self.regex_txtctrl.GetValue(),
+                 'is_alternating': self.alternate_chkbox.GetValue()}
         pickle.dump(state, open(stateP, 'wb'))
-
-    def onCheck_doublesided(self, evt):
-        if self.chkbox_double_sided.GetValue():
-            # Means we're going from False -> True
-            self.btn_doublesided_opts.Enable()
-        else:
-            self.btn_doublesided_opts.Disable()
-        evt.Skip()
-
-    def onButton_doublesided_opts(self, evt):
-        dlg = DoubleSideDialog(self)
-        status = dlg.ShowModal()
-        if status == wx.ID_CANCEL:
-            return
-        self.ds_num_pages = dlg.num_pages
-        self.ds_regex = dlg.regex
-        self.ds_is_alternating = dlg.is_alternating
 
     def wrap(self, text):
         res = ""
@@ -272,6 +263,13 @@ which isn't divisible by num_pages {2}".format(len(imgnames_ordered), dirpath, n
         thread = threading.Thread(target=sanity_check.sanity_check,
                                   args=(self.voteddir, self))
         thread.start()
+
+    def onCheckBox_alternate(self, evt):
+        if self.alternate_chkbox.GetValue():
+            # We're going from False -> True
+            self.regex_txtctrl.Disable()
+        else:
+            self.regex_txtctrl.Enable()
 
 class DoubleSideDialog(wx.Dialog):
     def __init__(self, parent, *args, **kwargs):

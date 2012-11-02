@@ -126,6 +126,7 @@ class Project(object):
                      'projdir_path': projdir_path,
                      'voteddir': '',
                      'is_multipage': False,
+                     'num_pages': None,
                      'partition_exmpls': 'partition_exmpls.p',
                      'partitions_map': 'partitions_map.p',
                      'partitions_invmap': 'partitions_invmap.p',
