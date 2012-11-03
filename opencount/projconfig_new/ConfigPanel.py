@@ -61,13 +61,16 @@ class ConfigPanel(wx.Panel):
         sbox_ballotgroup = wx.StaticBox(self, label="Ballot Grouping/Pairing Configuration")
         ssizer_ballotgroup = wx.StaticBoxSizer(sbox_ballotgroup, orient=wx.VERTICAL)
 
-        txt_regex = wx.StaticText(self, label="Enter a regex to match on the filename.")
-
-        self.regex_txtctrl = wx.TextCtrl(self, value=r".*_.*_.*_(.*_.*)\.[a-zA-Z]*", size=(300,-1))
-        sizer_regex0 = wx.BoxSizer(wx.HORIZONTAL)
-        sizer_regex0.AddMany([(txt_regex,), ((10,0),), (self.regex_txtctrl,)])
+        txt_regex_shr = wx.StaticText(self, label="Enter a regex to match on the shared filename part.")
+        self.regexShr_txtctrl = wx.TextCtrl(self, value=r"(.*_.*_.*_.*).*_.*\.[a-zA-Z]*", size=(300,-1))
+        txt_regex_diff = wx.StaticText(self, label="Enter a regex to match on the distinguishing filename part.")
+        self.regexDiff_txtctrl = wx.TextCtrl(self, value=r".*_.*_.*_(.*_.*)\.[a-zA-Z]*", size=(300,-1))
+        sizer_regexShr = wx.BoxSizer(wx.HORIZONTAL)
+        sizer_regexDiff = wx.BoxSizer(wx.HORIZONTAL)
+        sizer_regexShr.AddMany([(txt_regex_shr,), ((10,0),), (self.regexShr_txtctrl,)])
+        sizer_regexDiff.AddMany([(txt_regex_diff,), ((10,0),), (self.regexDiff_txtctrl,)])
         sizer_regex1 = wx.BoxSizer(wx.VERTICAL)
-        sizer_regex1.AddMany([((0, 10),), (sizer_regex0,)])
+        sizer_regex1.AddMany([((0, 10),), (sizer_regexShr,), ((0,10),), (sizer_regexDiff,)])
 
         txt_or = wx.StaticText(self, label="- Or -")
 
@@ -173,7 +176,8 @@ which isn't divisible by num_pages {2}".format(len(imgnames_ordered), dirpath, n
         ballot_to_images = {}
         image_to_ballot = {} # maps {imgpath: int ballotID}
         by_ballots = separate_imgs(self.voteddir, int(self.numpages_txtctrl.GetValue()),
-                                   regex=self.regex_txtctrl.GetValue(),
+                                   regexShr=self.regexShr_txtctrl.GetValue(),
+                                   regexDiff=self.regexDiff_txtctrl.GetValue(),
                                    is_alternating=self.alternate_chkbox.GetValue())
         print by_ballots[:10]
         for id, imgpaths in enumerate(by_ballots):
@@ -204,14 +208,15 @@ which isn't divisible by num_pages {2}".format(len(imgnames_ordered), dirpath, n
             self.is_straightened.SetValue(state['is_straightened'])
             self.numpages_txtctrl.SetValue(str(state['num_pages']))
             self.varnumpages_chkbox.SetValue(state['varnumpages'])
-            self.regex_txtctrl.SetValue(state['regex'])
+            self.regexShr_txtctrl.SetValue(state['regexShr'])
+            self.regexDiff_txtctrl.SetValue(state['regexDiff'])
             self.alternate_chkbox.SetValue(state['is_alternating'])
             if self.varnumpages_chkbox.GetValue():
                 self.numpages_txtctrl.Disable()
             if self.alternate_chkbox.GetValue():
-                self.regex_txtctrl.Disable()
+                self.regexShr_txtctrl.Disable()
+                self.regexDiff_txtctrl.Disable()
         except:
-            traceback.print_exc()
             return False
         return True
     def save_session(self, stateP=None):
@@ -219,7 +224,8 @@ which isn't divisible by num_pages {2}".format(len(imgnames_ordered), dirpath, n
                  'is_straightened': self.is_straightened.GetValue(),
                  'num_pages': int(self.numpages_txtctrl.GetValue()),
                  'varnumpages': self.varnumpages_chkbox.GetValue(),
-                 'regex': self.regex_txtctrl.GetValue(),
+                 'regexShr': self.regexShr_txtctrl.GetValue(),
+                 'regexDiff': self.regexDiff_txtctrl.GetValue(),
                  'is_alternating': self.alternate_chkbox.GetValue()}
         pickle.dump(state, open(stateP, 'wb'))
 
@@ -282,9 +288,11 @@ which isn't divisible by num_pages {2}".format(len(imgnames_ordered), dirpath, n
     def onCheckBox_alternate(self, evt):
         if self.alternate_chkbox.GetValue():
             # We're going from False -> True
-            self.regex_txtctrl.Disable()
+            self.regexShr_txtctrl.Disable()
+            self.regexDiff_txtctrl.Disable()
         else:
-            self.regex_txtctrl.Enable()
+            self.regexShr_txtctrl.Enable()
+            self.regexDiff_txtctrl.Enable()
 
     def onCheckBox_varnumpages(self, evt):
         if self.varnumpages_chkbox.GetValue():
