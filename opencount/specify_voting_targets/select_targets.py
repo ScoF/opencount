@@ -86,7 +86,7 @@ class SelectTargetsMainPanel(wx.Panel):
                 # BOX_ASSOCS: dict {int contest_id: [ContestBox, [TargetBox_i, ...]]}
                 box_assocs = self.compute_box_ids(boxes)
                 # TODO: For now, just grab one exemplar image from this partition
-                imgpath = self.seltargets_panel.partitions[partition_idx][side][0]
+                imgpath = self.seltargets_panel.partitions[partition_idx][0][side]
                 rows_contests = [] 
                 rows_targets = []
                 id_c, id_t = 0, 0
@@ -414,7 +414,8 @@ this partition.")
         _c = wximg.GetWidth() / float(wP)
         wimg = wP
         himg = int(round(wximg.GetHeight() / _c))
-        self.imagepanel.set_image(wximg, size=(wimg, himg))
+        #self.imagepanel.set_image(wximg, size=(wimg, himg))
+        self.imagepanel.set_image(wximg)
         
         # 2.) Read in previously-created boxes for I (if exists)
         boxes = self.boxes.get(self.cur_i, [])[page]
@@ -672,7 +673,7 @@ class ImagePanel(ScrolledPanel):
         """
         self.img = img
 
-        c = size[0] / float(self.img.GetWidth()) if size else 1.0
+        c = size[0] / float(self.img.GetWidth()) if size else self.scale
         self.set_scale(c)
         
     def set_scale(self, scale):
