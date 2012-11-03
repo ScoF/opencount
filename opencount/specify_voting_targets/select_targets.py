@@ -489,10 +489,10 @@ this partition.")
 
     def infercontests(self):
         imgpaths_exs = [] # list of [imgpath_i, ...]
+        # Arbitrarily choose the first one Ballot from each partition
         for partition_idx, imgpaths_sides in enumerate(self.partitions):
             for imgpaths in imgpaths_sides:
-                # Arbitrarily choose the first one
-                imgpaths_exs.append(imgpaths[0])
+                imgpaths_exs.extend(imgpaths)
                 break
         # Let i=target #, j=ballot style, k=contest idx:
         targets = [] # list of [[[box_ijk, ...], [box_ijk+1, ...], ...], ...]
