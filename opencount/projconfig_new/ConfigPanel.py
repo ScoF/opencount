@@ -62,7 +62,7 @@ class ConfigPanel(wx.Panel):
         ssizer_ballotgroup = wx.StaticBoxSizer(sbox_ballotgroup, orient=wx.VERTICAL)
 
         txt_regex_shr = wx.StaticText(self, label="Enter a regex to match on the shared filename part.")
-        self.regexShr_txtctrl = wx.TextCtrl(self, value=r"(.*_.*_.*_.*).*_.*\.[a-zA-Z]*", size=(300,-1))
+        self.regexShr_txtctrl = wx.TextCtrl(self, value=r"(.*_.*_.*_).*_.*\.[a-zA-Z]*", size=(300,-1))
         txt_regex_diff = wx.StaticText(self, label="Enter a regex to match on the distinguishing filename part.")
         self.regexDiff_txtctrl = wx.TextCtrl(self, value=r".*_.*_.*_(.*_.*)\.[a-zA-Z]*", size=(300,-1))
         sizer_regexShr = wx.BoxSizer(wx.HORIZONTAL)
@@ -125,7 +125,7 @@ class ConfigPanel(wx.Panel):
         data structures. Also, set the proj.voteddir, proj.imgsize,
         proj.is_multipage, and proj.num_pages properties.
         """
-        def separate_imgs(voteddir, num_pages, regex=None,
+        def separate_imgs(voteddir, num_pages, regexShr=None, regexDiff=None,
                           is_alternating=None):
             """ Separates images into sets of Ballots.
             Input:
@@ -156,21 +156,19 @@ which isn't divisible by num_pages {2}".format(len(imgnames_ordered), dirpath, n
                         imgpath = pathjoin(dirpath, imgname)
                         ballots.append([imgpath])
                 else:
-                    i = 0
-                    pat = re.compile(regex)
-                    while i < len(imgnames):
-                        imgpath = pathjoin(dirpath, imgnames[i])
-                        matches = [(pat.match(imP), idx) for idx, imP in enumerate(imgnames[i:])]
-                        matches = [(mat, idx) for (mat, idx) in matches if mat != None]
-                        ballotpairs = [] # [(imgpath, portion), ...]
-                        for (mat, idx) in matches:
-                            sistername = imgnames[idx]
-                            sisterpath = pathjoin(dirpath, sistername)
-                            portion = mat.groups()[0]
-                            ballotpairs.append((sisterpath, portion))
-                        curballot = [t[0] for t in sorted(ballotpairs, key=lambda t: t[1])]
-                        ballots.append(curballot)
-                        i += 1
+                    shrPat = re.compile(regexShr)
+                    diffPat = re.compile(regexDiff)
+                    curmats = {} # maps {str sim_pat: [(str imgpath, str diff_pat), ...]}
+                    for imgname in imgnames:
+                        imgpath = pathjoin(dirpath, imgname)
+                        sim_part = shrPat.match(imgname).groups()[0]
+                        diff_part = diffPat.match(imgname).groups()[0]
+                        curmats.setdefault(sim_part, []).append((imgpath, diff_part))
+                    for sim_pat, tuples in curmats.iteritems():
+                        # sort by diffPart
+                        tuples_sorted = sorted(tuples, key=lambda t: t[1])
+                        imgpaths_sorted = [t[0] for t in tuples_sorted]
+                        ballots.append(imgpaths_sorted)
             return ballots
         # BALLOT_TO_IMAGES: maps {int ballotID: [imgpath_side0, imgpath_side1, ...]}
         ballot_to_images = {}
