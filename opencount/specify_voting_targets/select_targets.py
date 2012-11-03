@@ -775,6 +775,11 @@ class BoxDrawPanel(ImagePanel):
         self.isCreate = False
         self.box_create = None
 
+        # Vars for resizing behavior
+        self.isResize = False
+        self.box_resize = None
+        self.resize_orient = None # 'N', 'NE', etc...
+
         self.mode_m = BoxDrawPanel.M_CREATE
         
         # _x,_y keep track of last mouse position
@@ -838,13 +843,25 @@ class BoxDrawPanel(ImagePanel):
             list MATCHES, of the form:
                 [(obj Box_i, float dist_i), ...]
         """
-        def distL2(x1,y1,x2,y2):
-            return math.sqrt((float(y1)-y2)**2.0 + (float(x1)-x2)**2.0)
 
         results = []
         for box in self.boxes:
             if mode == 'N':
                 x1, y1 = self.img2c((box.x1 + (box.width/2)), box.y1)
+            elif mode == 'NE':
+                x1, y1 = self.img2c(box.x1 + box.width, box.y1)
+            elif mode == 'E':
+                x1, y1 = self.img2c(box.x1 + box.width, box.y1 + (box.height/2))
+            elif mode == 'SE':
+                x1, y1 = self.img2c(box.x1 + box.width, box.y1 + box.height)
+            elif mode == 'S':
+                x1, y1 = self.img2c(box.x1 + (box.width/2), box.y1 + box.height)
+            elif mode == 'SW':
+                x1, y1 = self.img2c(box.x1, box.y1 + box.height)
+            elif mode == 'W':
+                x1, y1 = self.img2c(box.x1, box.y1 + (box.heigth/2))
+            elif mode == 'NW':
+                x1, y1 = self.img2c(box.x1, box.y1)
             else:
                 # Default to 'any'
                 x1, y1 = self.img2c(box.x1, box.y1)
@@ -853,16 +870,54 @@ class BoxDrawPanel(ImagePanel):
                     y > y1 and y < y2):
                     results.append((box, None))
                 continue
-            if d <= C:
-                results.append((box, d))
+            dist = distL2(x1, y1, x, y)
+            if dist <= C:
+                results.append((box, dist))
         if mode == 'any':
             return results
         results = sorted(results, key=lambda t: t[1])
         return results
 
+    def get_box_to_resize(self, x, y, C=8.0):
+        """ Returns a Box instance if the current mouse location is
+        close enough to a resize location, or None o.w.
+        Input:
+            int X, Y: Mouse location.
+        Output:
+            Box or None.
+        """
+        results = [] # [[orient, box, dist], ...]
+        for box in self.boxes:
+            locs = {'N': self.img2c(box.x1 + (box.width/2), box.y1),
+                    'NE': self.img2c(box.x1 + box.width, box.y1),
+                    'E': self.img2c(box.x1 + box.width, box.y1 + (box.height/2)),
+                    'SE': self.img2c(box.x1 + box.width, box.y1 + box.height),
+                    'S': self.img2c(box.x1 + (box.width/2),box.y1 + box.height),
+                    'SW': self.img2c(box.x1, box.y1 + box.height),
+                    'W': self.img2c(box.x1, box.y1 + (box.height/2)),
+                    'NW': self.img2c(box.x1, box.y1)}
+            for (orient, (x1,y1)) in locs.iteritems():
+                dist = distL2(x1,y1,x,y)
+                if dist <= C:
+                    results.append((orient, box, dist))
+        print results
+        if not results:
+            return None, None
+        results = sorted(results, key=lambda t: t[2])
+        return results[0][1], results[0][0]
+
     def onLeftDown(self, evt):
         self.SetFocus()
         x, y = self.CalcUnscrolledPosition(evt.GetPositionTuple())
+        
+        box_resize, orient = self.get_box_to_resize(x, y)
+        if self.mode_m == BoxDrawPanel.M_IDLE and box_resize:
+            self.isResize = True
+            self.box_resize = box_resize
+            self.resize_orient = orient
+            self.Refresh()
+            return
+
         if self.mode_m == BoxDrawPanel.M_CREATE:
             print "...Creating Target box."
             self.clear_selected()
@@ -880,6 +935,11 @@ class BoxDrawPanel(ImagePanel):
 
     def onLeftUp(self, evt):
         x, y = self.CalcUnscrolledPosition(evt.GetPositionTuple())
+        if self.isResize:
+            self.box_resize.canonicalize()
+            self.box_resize = None
+            self.isResize = False
+
         if self.mode_m == BoxDrawPanel.M_CREATE and self.isCreate:
             box = self.finishBox(x, y)
             self.boxes.append(box)
@@ -894,6 +954,20 @@ class BoxDrawPanel(ImagePanel):
         x, y = self.CalcUnscrolledPosition(evt.GetPositionTuple())
         xdel, ydel = x - self._x, y - self._y
         self._x, self._y = x, y
+        
+        if self.isResize and evt.Dragging():
+            xdel_img, ydel_img = self.c2img(xdel, ydel)
+            if 'N' in self.resize_orient:
+                self.box_resize.y1 += ydel_img
+            if 'E' in self.resize_orient:
+                self.box_resize.x2 += xdel_img
+            if 'S' in self.resize_orient:
+                self.box_resize.y2 += ydel_img
+            if 'W' in self.resize_orient:
+                self.box_resize.x1 += xdel_img
+            self.Refresh()
+            return
+
         if self.isCreate:
             self.box_create.x2, self.box_create.y2 = self.c2img(x, y)
             self.Refresh()
@@ -932,15 +1006,23 @@ class BoxDrawPanel(ImagePanel):
 
     def onPaint(self, evt):
         dc = ImagePanel.onPaint(self, evt)
-        self.drawBoxes(self.boxes, dc)
+        if self.isResize:
+            dboxes = [b for b in self.boxes if b != self.box_resize]
+        else:
+            dboxes = self.boxes
+        self.drawBoxes(dboxes, dc)
         if self.isCreate:
             # Draw Box-Being-Created
             can_box = self.box_create.copy().canonicalize()
             self.drawBox(can_box, dc)
+        if self.isResize:
+            pass
+            resize_box_can = self.box_resize.copy().canonicalize()
+            self.drawBox(resize_box_can, dc)
         return dc
         
     def drawBoxes(self, boxes, dc):
-        for box in self.boxes:
+        for box in boxes:
             self.drawBox(box, dc)
 
     def drawBox(self, box, dc):
@@ -956,6 +1038,21 @@ class BoxDrawPanel(ImagePanel):
         h = int(round(abs(box.y2 - box.y1) * self.scale))
         client_x, client_y = self.img2c(box.x1, box.y1)
         dc.DrawRectangle(client_x, client_y, w, h)
+
+        if isinstance(box, TargetBox) or isinstance(box, ContestBox):
+            # Draw the 'grabber' circles
+            CIRCLE_RAD = 3
+            dc.SetPen(wx.Pen("Black", 1))
+            dc.SetBrush(wx.Brush("White"))
+            dc.DrawCircle(client_x, client_y, CIRCLE_RAD)           # Upper-Left
+            dc.DrawCircle(client_x+(w/2), client_y, CIRCLE_RAD)     # Top
+            dc.DrawCircle(client_x+w, client_y, CIRCLE_RAD)         # Upper-Right
+            dc.DrawCircle(client_x, client_y+(h/2), CIRCLE_RAD)     # Left
+            dc.DrawCircle(client_x+w, client_y+(h/2), CIRCLE_RAD)   # Right
+            dc.DrawCircle(client_x, client_y+h, CIRCLE_RAD)         # Lower-Left
+            dc.DrawCircle(client_x+(w/2), client_y+h, CIRCLE_RAD)     # Bottom
+            dc.DrawCircle(client_x+w, client_y+h, CIRCLE_RAD)           # Lower-Right
+            dc.SetBrush(wx.TRANSPARENT_BRUSH)
 
 class TemplateMatchDrawPanel(BoxDrawPanel):
     """ Like a BoxDrawPanel, but when you create a Target box, it runs
@@ -1250,6 +1347,9 @@ def bestmatch(A, B):
 
 def isimgext(f):
     return os.path.splitext(f)[1].lower() in ('.png', '.bmp', 'jpeg', '.jpg', '.tif')
+
+def distL2(x1,y1,x2,y2):
+    return math.sqrt((float(y1)-y2)**2.0 + (float(x1)-x2)**2.0)
 
 def main():
     class TestFrame(wx.Frame):
