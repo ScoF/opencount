@@ -14,8 +14,6 @@ sys.path.append('..')
 import util
 import barcode.partition_imgs as partition_imgs
 
-BALLOT_VENDORS = ("Diebold", "Hart", "Sequoia")
-
 class PartitionMainPanel(wx.Panel):
     # NUM_EXMPLS: Number of exemplars to grab from each partition
     NUM_EXMPLS = 5
@@ -49,32 +47,37 @@ class PartitionMainPanel(wx.Panel):
         Also, choose a set of exemplars for each partition and save
         them as PARTITION_EXMPLS: {partitionID: [int BallotID_i, ...]}
         """
-        # partitioning: {(str bc_i, ...): [[imgpath_i, isflip_i, bbs_i, info], ...]}
-        # sort by first barcode
-        partitioning_sorted = sorted(self.partitionpanel.partitioning.items(), key=lambda t: t[0][0])
-        partitions_map = {}
+        # partitioning: {int partitionID: [int ballotID_i, ...]}
         partitions_invmap = {}
         partition_exmpls = {}
         image_to_page = {} # maps {str imgpath: int side}
         img2b = pickle.load(open(self.proj.image_to_ballot, 'rb'))
-        for partitionID, (bcs, items) in enumerate(partitioning_sorted):
-            partition = set()
+        b2imgs = pickle.load(open(self.proj.ballot_to_images, 'rb'))
+        for partitionID, ballotIDs in self.partitionpanel.partitioning.iteritems():
             exmpls = set()
-            for (imgpath, isflip, bbs, info) in items:
-                ballotid = img2b[imgpath]
-                partition.add(ballotid)
+            for ballotID in ballotIDs:
                 if len(exmpls) <= self.NUM_EXMPLS:
-                    exmpls.add(ballotid)
-                partitions_invmap[ballotid] = partitionID
-                image_to_page[imgpath] = info['page']
-            partitions_map[partitionID] = list(partition)
+                    exmpls.add(ballotID)
+                partitions_invmap[ballotID] = partitionID
+                imgpaths = b2imgs[ballotID]
+                for imgpath in imgpaths:
+                    image_to_page[imgpath] = self.partitionpanel.imginfo[imgpath]['page']
             partition_exmpls[partitionID] = sorted(list(exmpls))
         partitions_map_outP = pathjoin(self.proj.projdir_path, self.proj.partitions_map)
         partitions_invmap_outP = pathjoin(self.proj.projdir_path, self.proj.partitions_invmap)
+        decoded_map_outP = pathjoin(self.proj.projdir_path, self.proj.decoded_map)
+        imginfo_map_outP = pathjoin(self.proj.projdir_path, self.proj.imginfo_map)
+        bbs_map_outP = pathjoin(self.proj.projdir_path, self.proj.bbs_map)
         partition_exmpls_outP = pathjoin(self.proj.projdir_path, self.proj.partition_exmpls)
-        pickle.dump(partitions_map, open(partitions_map_outP, 'wb'),
+        pickle.dump(self.partitionpanel.partitioning, open(partitions_map_outP, 'wb'),
                     pickle.HIGHEST_PROTOCOL)
         pickle.dump(partitions_invmap, open(partitions_invmap_outP, 'wb'),
+                    pickle.HIGHEST_PROTOCOL)
+        pickle.dump(self.partitionpanel.decoded, open(decoded_map_outP, 'wb'),
+                    pickle.HIGHEST_PROTOCOL)
+        pickle.dump(self.partitionpanel.imginfo, open(imginfo_map_outP, 'wb'),
+                    pickle.HIGHEST_PROTOCOL)
+        pickle.dump(self.partitionpanel.bbs_map, open(bbs_map_outP, 'wb'),
                     pickle.HIGHEST_PROTOCOL)
         pickle.dump(image_to_page, open(pathjoin(self.proj.projdir_path,
                                                  self.proj.image_to_page), 'wb'),
@@ -89,17 +92,18 @@ class PartitionPanel(ScrolledPanel):
         ScrolledPanel.__init__(self, parent, *args, **kwargs)
         
         self.voteddir = None
-        # PARTITIONING: maps {(str bc_i, ...): [[imgpath_i, isflip_i, bbs_i, info], ...]}
+        # PARTITIONING: maps {int partitionID: [int ballotID_i, ...]}
         self.partitioning = None
+        # DECODED: maps {int ballotID: [(str barcode_side0, ...), ...]}
+        self.decoded = None
+        # IMGINFO: maps {str imgpath: {str key: str val}}
+        self.imginfo = None
+        # BBS_MAP: maps {str imgpath: [[x1,y1,x2,y2],...]}
+        self.bbs_map = None
 
         self.init_ui()
 
     def init_ui(self):
-        txt0 = wx.StaticText(self, label="What is the ballot vendor?")
-        self.vendor_dropdown = wx.ComboBox(self, style=wx.CB_READONLY, choices=BALLOT_VENDORS)
-        sizer0 = wx.BoxSizer(wx.HORIZONTAL)
-        sizer0.AddMany([(txt0,), (self.vendor_dropdown,)])
-
         self.sizer_stats = wx.BoxSizer(wx.HORIZONTAL)
         txt1 = wx.StaticText(self, label="Number of Partitions: ")
         self.num_partitions_txt = wx.StaticText(self)
@@ -112,7 +116,7 @@ class PartitionPanel(ScrolledPanel):
         btn_sizer.AddMany([(btn_run,)])
         
         self.sizer = wx.BoxSizer(wx.VERTICAL)
-        self.sizer.AddMany([(sizer0,), (self.sizer_stats,), (btn_sizer,)])
+        self.sizer.AddMany([(self.sizer_stats,), (btn_sizer,)])
         self.SetSizer(self.sizer)
         self.Layout()
         self.SetupScrolling()
@@ -134,9 +138,7 @@ class PartitionPanel(ScrolledPanel):
         try:
             state = pickle.load(open(self.stateP, 'rb'))
             self.voteddir = state['voteddir']
-            self.vendor = state['vendor']
             self.partitioning = state['partitioning']
-            self.vendor_dropdown.SetStringSelection(self.vendor)
             if self.partitioning != None:
                 self.num_partitions_txt.SetLabel(str(len(self.partitioning)))
                 self.sizer_stats.ShowItems(True)
@@ -147,24 +149,23 @@ class PartitionPanel(ScrolledPanel):
     def save_session(self):
         print "...PartitionPanel: Saving state..."
         state = {'voteddir': self.voteddir,
-                 'vendor': self.vendor_dropdown.GetStringSelection(),
                  'partitioning': self.partitioning}
         pickle.dump(state, open(self.stateP, 'wb'))
 
     def onButton_run(self, evt):
         class PartitionThread(threading.Thread):
-            def __init__(self, imgpaths, vendor, callback, jobid, queue, tlisten, *args, **kwargs):
+            def __init__(self, b2imgs, vendor_obj, callback, jobid, queue, tlisten, *args, **kwargs):
                 threading.Thread.__init__(self, *args, **kwargs)
-                self.imgpaths = imgpaths
-                self.vendor = vendor
+                self.b2imgs = b2imgs
+                self.vendor_obj = vendor_obj
                 self.callback = callback
                 self.jobid = jobid
                 self.queue = queue
                 self.tlisten = tlisten
             def run(self):
-                partitioning = partition_imgs.partition_imgs(self.imgpaths, vendor=vendor, queue=queue)
+                partitioning, decoded, imginfo, bbs_map = self.vendor_obj.partition_ballots(self.b2imgs, queue=queue)
                 wx.CallAfter(Publisher().sendMessage, "signals.MyGauge.done", (self.jobid,))
-                wx.CallAfter(self.callback, partitioning)
+                wx.CallAfter(self.callback, partitioning, decoded, imginfo, bbs_map)
                 self.tlisten.stop()
         class ListenThread(threading.Thread):
             def __init__(self, queue, jobid, *args, **kwargs):
@@ -189,18 +190,13 @@ class PartitionPanel(ScrolledPanel):
                     except Queue.Empty:
                         pass
 
-        vendor = self.vendor_dropdown.GetValue()
+        vendor_obj = self.proj.vendor_obj
         b2imgs = pickle.load(open(self.proj.ballot_to_images, 'rb'))
-        # TODO: Assume that relevant information is on the first page
-        votedpaths = []
-        for ballotid, imgpaths in b2imgs.iteritems():
-            votedpaths.append(imgpaths[0])
         queue = Queue.Queue()
         tlisten = ListenThread(queue, self.PARTITION_JOBID)
-
-        t = PartitionThread(votedpaths, vendor, self.on_partitiondone,
+        t = PartitionThread(b2imgs, vendor_obj, self.on_partitiondone,
                             self.PARTITION_JOBID, queue, tlisten)
-        numtasks = len(imgpaths)
+        numtasks = len(b2imgs)
         gauge = util.MyGauge(self, 1, thread=t, msg="Running Partitioning...",
                              job_id=self.PARTITION_JOBID)
         tlisten.start()
@@ -208,14 +204,27 @@ class PartitionPanel(ScrolledPanel):
         gauge.Show()
         wx.CallAfter(Publisher().sendMessage, "signals.MyGauge.nextjob", (numtasks, self.PARTITION_JOBID))
         
-    def on_partitiondone(self, partitioning):
+    def on_partitiondone(self, partitioning, decoded, imginfo, bbs_map):
+        """
+        Input:
+            dict PARTITIONING: {int partitionID: [int ballotID_i, ...]}
+            dict DECODED: {int ballotID: [(str barcode_side0, ...), ...]}
+            dict IMGINFO: {str imgpath: {str KEY: str VAL}}
+            dict BBS_MAP: {str imgpath: [[x1,y1,x2,y2], ...]}
+        """
         print "...Partitioning Done..."
         print partitioning
+        print
+        print decoded
+        print
+        print imginfo
+        print
+        print bbs_map
         self.partitioning = partitioning
+        self.decoded = decoded
+        self.imginfo = imginfo
+        self.bbs_map = bbs_map
         self.num_partitions_txt.SetLabel(str(len(partitioning)))
         self.sizer_stats.ShowItems(True)
         self.Layout()
 
-
-        
-        

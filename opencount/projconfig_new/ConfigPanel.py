@@ -11,6 +11,10 @@ import cv
 sys.path.append('..')
 
 import util
+from vendors import Hart
+
+BALLOT_VENDORS = ("Diebold", "Hart", "Sequoia")
+VENDOR_CLASSES = {'hart': Hart.HartVendor}
 
 class ConfigPanel(wx.Panel):
     def __init__(self, parent, *args, **kwargs):
@@ -81,6 +85,11 @@ class ConfigPanel(wx.Panel):
         
         self.is_straightened = wx.CheckBox(self, -1, label="Ballots already straightened.")
         
+        txt_vendor = wx.StaticText(self, label="What is the ballot vendor?")
+        self.vendor_dropdown = wx.ComboBox(self, style=wx.CB_READONLY, choices=BALLOT_VENDORS)
+        sizer_vendor = wx.BoxSizer(wx.HORIZONTAL)
+        sizer_vendor.AddMany([(txt_vendor,), (self.vendor_dropdown,)])
+
         self.btn_run = wx.Button(self, label="Run sanity check")
         self.btn_run.Bind(wx.EVT_BUTTON, self.onButton_runsanitycheck)
         self.btn_run.box = wx.StaticBox(self)
@@ -95,6 +104,8 @@ class ConfigPanel(wx.Panel):
         self.sizer.Add(ssizer_ballotgroup)
         self.sizer.Add((0, 25))
         self.sizer.Add(self.is_straightened)
+        self.sizer.Add((0, 25))
+        self.sizer.Add(sizer_vendor)
         self.sizer.Add((0, 25))
         self.sizer.Add(sboxsizer1)
         
@@ -123,7 +134,7 @@ class ConfigPanel(wx.Panel):
     def export_results(self):
         """ Create and store the ballot_to_images and image_to_ballot
         data structures. Also, set the proj.voteddir, proj.imgsize,
-        proj.is_multipage, and proj.num_pages properties.
+        proj.is_multipage, proj.num_pages, and proj.vendor_obj properties.
         """
         def separate_imgs(voteddir, num_pages, regexShr=None, regexDiff=None,
                           is_alternating=None):
@@ -196,6 +207,8 @@ which isn't divisible by num_pages {2}".format(len(imgnames_ordered), dirpath, n
             self.project.is_multipage = False
         # 5.) Set project.num_pages
         self.project.num_pages = int(self.numpages_txtctrl.GetValue())
+        # 6.) Set project.vendor_obj
+        self.project.vendor_obj = VENDOR_CLASSES[self.vendor_dropdown.GetStringSelection().lower()]()
         
     def restore_session(self, stateP=None):
         try:
@@ -208,6 +221,7 @@ which isn't divisible by num_pages {2}".format(len(imgnames_ordered), dirpath, n
             self.regexShr_txtctrl.SetValue(state['regexShr'])
             self.regexDiff_txtctrl.SetValue(state['regexDiff'])
             self.alternate_chkbox.SetValue(state['is_alternating'])
+            self.vendor_dropdown.SetStringSelection(state['vendor'])
             if self.varnumpages_chkbox.GetValue():
                 self.numpages_txtctrl.Disable()
             if self.alternate_chkbox.GetValue():
@@ -223,7 +237,8 @@ which isn't divisible by num_pages {2}".format(len(imgnames_ordered), dirpath, n
                  'varnumpages': self.varnumpages_chkbox.GetValue(),
                  'regexShr': self.regexShr_txtctrl.GetValue(),
                  'regexDiff': self.regexDiff_txtctrl.GetValue(),
-                 'is_alternating': self.alternate_chkbox.GetValue()}
+                 'is_alternating': self.alternate_chkbox.GetValue(),
+                 'vendor': self.vendor_dropdown.GetStringSelection()}
         pickle.dump(state, open(stateP, 'wb'))
 
     def wrap(self, text):
