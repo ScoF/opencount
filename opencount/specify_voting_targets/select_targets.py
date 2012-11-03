@@ -865,17 +865,21 @@ class BoxDrawPanel(ImagePanel):
         x, y = self.CalcUnscrolledPosition(evt.GetPositionTuple())
         if self.mode_m == BoxDrawPanel.M_CREATE:
             print "...Creating Target box."
+            self.clear_selected()
             self.startBox(x, y, TargetBox)
-        elif self.mode_m == BoxDrawPanel.M_IDLE and not self.sel_boxes:
+        elif self.mode_m == BoxDrawPanel.M_IDLE:
             boxes = self.get_boxes_within(x, y, mode='any')
             if boxes:
-                self.select_boxes(boxes[0][0])
+                b = boxes[0][0]
+                if b not in self.sel_boxes:
+                    self.clear_selected()
+                    self.select_boxes(boxes[0][0])
             else:
+                self.clear_selected()
                 self.startBox(x, y, SelectionBox)
 
     def onLeftUp(self, evt):
         x, y = self.CalcUnscrolledPosition(evt.GetPositionTuple())
-        self.clear_selected()
         if self.mode_m == BoxDrawPanel.M_CREATE and self.isCreate:
             box = self.finishBox(x, y)
             self.boxes.append(box)
