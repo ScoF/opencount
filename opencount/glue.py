@@ -43,7 +43,7 @@ class MainFrame(wx.Frame):
     PROCESS = 12
 
     def __init__(self, parent, *args, **kwargs):
-        wx.Frame.__init__(self, parent, *args, **kwargs)
+        wx.Frame.__init__(self, parent, title="OpenCount", *args, **kwargs)
         
         # PROJECT: Current Project being worked on.
         self.project = None
@@ -96,6 +96,7 @@ class MainFrame(wx.Frame):
 
         if old == MainFrame.PROJECT:
             self.project = self.panel_projects.get_project()
+            self.SetTitle("OpenCount -- Project {0}".format(self.project.name))
         elif old == MainFrame.CONFIG:
             self.panel_config.stop()
         elif old == MainFrame.PARTITION:
