@@ -58,17 +58,23 @@ class ConfigPanel(wx.Panel):
         sizer_numpages.AddMany([(txt_numpages,), ((10,0),), (self.numpages_txtctrl,),
                                 ((10,0),), (self.varnumpages_chkbox,)])
         
+        sbox_ballotgroup = wx.StaticBox(self, label="Ballot Grouping/Pairing Configuration")
+        ssizer_ballotgroup = wx.StaticBoxSizer(sbox_ballotgroup, orient=wx.VERTICAL)
+
         txt_regex = wx.StaticText(self, label="Enter a regex to match on the filename.")
-        self.regex_txtctrl = wx.TextCtrl(self, value=r".*_.*_.*_(.*_.*)\.[a-zA-Z]*")
-        sizer_regex = wx.BoxSizer(wx.HORIZONTAL)
-        sizer_regex.AddMany([(txt_regex,), ((10,0),), (self.regex_txtctrl,)])
+
+        self.regex_txtctrl = wx.TextCtrl(self, value=r".*_.*_.*_(.*_.*)\.[a-zA-Z]*", size=(300,-1))
+        sizer_regex0 = wx.BoxSizer(wx.HORIZONTAL)
+        sizer_regex0.AddMany([(txt_regex,), ((10,0),), (self.regex_txtctrl,)])
+        sizer_regex1 = wx.BoxSizer(wx.VERTICAL)
+        sizer_regex1.AddMany([((0, 10),), (sizer_regex0,)])
+
+        txt_or = wx.StaticText(self, label="- Or -")
 
         self.alternate_chkbox = wx.CheckBox(self, label="Ballots alternate front and back")
         self.alternate_chkbox.Bind(wx.EVT_CHECKBOX, self.onCheckBox_alternate)
 
-        sizer_doublesided = wx.BoxSizer(wx.VERTICAL)
-        sizer_doublesided.AddMany([(sizer_numpages,), (sizer_regex,),
-                                   (self.alternate_chkbox,)])
+        ssizer_ballotgroup.AddMany([(sizer_regex1,), ((0,10),), (txt_or,0,wx.ALIGN_CENTER), ((0,10),), (self.alternate_chkbox,)])
         
         self.is_straightened = wx.CheckBox(self, -1, label="Ballots already straightened.")
         
@@ -81,7 +87,9 @@ class ConfigPanel(wx.Panel):
         self.sizer = wx.BoxSizer(wx.VERTICAL)
         self.sizer.Add(sizer0)
         self.sizer.Add((0, 25))
-        self.sizer.Add(sizer_doublesided)
+        self.sizer.Add(sizer_numpages)
+        self.sizer.Add((0, 25))
+        self.sizer.Add(ssizer_ballotgroup)
         self.sizer.Add((0, 25))
         self.sizer.Add(self.is_straightened)
         self.sizer.Add((0, 25))
