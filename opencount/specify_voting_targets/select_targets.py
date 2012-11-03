@@ -1190,9 +1190,9 @@ class ContestBox(Box):
         DC to use.
         """
         if self.is_sel:
-            return ("Yellow", 3)
+            return ("Yellow", 5)
         else:
-            return ("Blue", 3)
+            return ("Blue", 5)
     def copy(self):
         return ContestBox(self.x1, self.y1, self.x2, self.y2, is_sel=self.is_sel)
     
