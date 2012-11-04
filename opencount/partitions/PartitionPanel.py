@@ -51,6 +51,7 @@ class PartitionMainPanel(wx.Panel):
         partitions_invmap = {}
         partition_exmpls = {}
         image_to_page = {} # maps {str imgpath: int side}
+        image_to_flip = {} # maps {str imgpath: bool isflip}
         img2b = pickle.load(open(self.proj.image_to_ballot, 'rb'))
         b2imgs = pickle.load(open(self.proj.ballot_to_images, 'rb'))
         for partitionID, ballotIDs in self.partitionpanel.partitioning.iteritems():
@@ -62,6 +63,7 @@ class PartitionMainPanel(wx.Panel):
                 imgpaths = b2imgs[ballotID]
                 for imgpath in imgpaths:
                     image_to_page[imgpath] = self.partitionpanel.imginfo[imgpath]['page']
+                    image_to_flip[imgpath] = self.partitionpanel.imginfo[imgpath]['isflip']
             partition_exmpls[partitionID] = sorted(list(exmpls))
         partitions_map_outP = pathjoin(self.proj.projdir_path, self.proj.partitions_map)
         partitions_invmap_outP = pathjoin(self.proj.projdir_path, self.proj.partitions_invmap)
@@ -81,6 +83,9 @@ class PartitionMainPanel(wx.Panel):
                     pickle.HIGHEST_PROTOCOL)
         pickle.dump(image_to_page, open(pathjoin(self.proj.projdir_path,
                                                  self.proj.image_to_page), 'wb'),
+                    pickle.HIGHEST_PROTOCOL)
+        pickle.dump(image_to_flip, open(pathjoin(self.proj.projdir_path,
+                                                 self.proj.image_to_flip), 'wb'),
                     pickle.HIGHEST_PROTOCOL)
         pickle.dump(partition_exmpls, open(partition_exmpls_outP, 'wb'),
                     pickle.HIGHEST_PROTOCOL)
@@ -139,6 +144,9 @@ class PartitionPanel(ScrolledPanel):
             state = pickle.load(open(self.stateP, 'rb'))
             self.voteddir = state['voteddir']
             self.partitioning = state['partitioning']
+            self.decoded = state['decoded']
+            self.imginfo = state['imginfo']
+            self.bbs_map = state['bbs_map']
             if self.partitioning != None:
                 self.num_partitions_txt.SetLabel(str(len(self.partitioning)))
                 self.sizer_stats.ShowItems(True)
@@ -149,7 +157,10 @@ class PartitionPanel(ScrolledPanel):
     def save_session(self):
         print "...PartitionPanel: Saving state..."
         state = {'voteddir': self.voteddir,
-                 'partitioning': self.partitioning}
+                 'partitioning': self.partitioning,
+                 'decoded': self.decoded,
+                 'imginfo': self.imginfo,
+                 'bbs_map': self.bbs_map}
         pickle.dump(state, open(self.stateP, 'wb'))
 
     def onButton_run(self, evt):

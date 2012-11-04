@@ -110,6 +110,10 @@ class LabelDigitsPanel(wx.Panel):
         self.Layout()
 
     def stop(self):
+        if not self.project:
+            # We haven't been run before, perhaps because this election
+            # has no digit-based attributes.
+            return
         self.mainpanel.digitpanel.save_session(statefile=self.statefile)
         self.project.removeCloseEvent(self._hookfn)
         self.export_results()
@@ -1288,7 +1292,7 @@ def do_extract_digitbased_patches(proj):
     Input:
         obj proj:
     Output:
-        Returns a dict mapping {str patchpath: (templatepath, attrtype, bb, int side)}
+        Returns a dict mapping {str patchpath: (imgpath, attrtype, bb, int side)}
     """
 
     # all_attrtypes is a list of dicts (marshall'd AttributeBoxes)
@@ -1311,8 +1315,10 @@ def do_extract_digitbased_patches(proj):
     img2page = pickle.load(open(pathjoin(proj.projdir_path,
                                          proj.image_to_page), 'rb'))
     # Arbitrarily choose 1 voted ballot from each partition
+    partition_exmpls = pickle.load(open(pathjoin(proj.projdir_path,
+                                                 proj.partition_exmpls), 'rb'))
     tasks = [] # list [(int ballotID, [imgpath_side0, ...]), ...]
-    for partitionID, ballotIDs in partitions_map.iteritems():
+    for partitionID, ballotIDs in partition_exmpls.iteritems():
         ballotid = ballotIDs[0]
         imgpaths = bal2imgs[ballotid]
         imgpaths_ordered = sorted(imgpaths, key=lambda imP: img2page[imP])
@@ -1331,7 +1337,7 @@ def _my_combfn(results, subresults):
 def extract_digitbased_patches(tasks, (digit_attrtypes, proj), idx):
     i = 0
     outdir = pathjoin(proj.projdir_path, proj.extracted_digitpatch_dir)
-    patch2temp = {} # maps {str patchpath: (imgpath, attrtype, bb, str side)}
+    patch2temp = {} # maps {str patchpath: (imgpath, attrtype, bb, int side)}
     for (attrs,x1,y1,x2,y2,side) in digit_attrtypes:
         for templateid, imgpaths in tasks:
             imgpath = imgpaths[side]

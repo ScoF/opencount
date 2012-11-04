@@ -87,6 +87,7 @@ class ResultsPanel(ScrolledPanel):
         target_locs_map = pickle.load(open(pathjoin(self.proj.projdir_path,
                                                     self.proj.target_locs_map), 'rb'))
         for partitionID, contests_sides in target_locs_map.iteritems():
+            
             exmpl_id = partition_exmpls[partitionID][0]
             imgpaths = b2imgs[exmpl_id]
             imgpaths_ordered = sorted(imgpaths, key=lambda imP: img2page[imP])
@@ -109,7 +110,7 @@ class ResultsPanel(ScrolledPanel):
                     continue
                 else:
                     templatemap[exmpl_imgP] = thismap
-                    
+        
         return templatemap
 
     def get_text(self):
@@ -123,7 +124,6 @@ class ResultsPanel(ScrolledPanel):
         for row in csv.reader(open(self.proj.contest_id)):
             order[row[0],int(row[2])] = map(int,row[3:])
 
-        # pdb.set_trace()
         return text, order
 
     def process(self):

@@ -29,23 +29,31 @@ class DefineAttributesMainPanel(wx.Panel):
         self.Layout()
 
     def start(self, proj, stateP):
+        """ Grab a few exemplar ballots, and feed it to the UI.
+        """
         self.proj = proj
         self.proj.addCloseEvent(self.defineattrs.save_session)
         b2imgs = pickle.load(open(self.proj.ballot_to_images, 'rb'))
         img2page = pickle.load(open(pathjoin(self.proj.projdir_path,
                                              self.proj.image_to_page), 'rb'))
-        # 0.) Create the BALLOT_SIDES list of lists:
+        # PARTITION_EXMPLS: {int partitionID: [int ballotID_i, ...]}
+        partition_exmpls = pickle.load(open(pathjoin(self.proj.projdir_path,
+                                                     self.proj.partition_exmpls), 'rb'))
+        # 1.) Create the BALLOT_SIDES list of lists:
         #     [[imgP_i_page0, ...], [imgP_i_page1, ...]]
         ballot_sides = []
-        for idx, (ballotid, imgpaths) in enumerate(b2imgs.iteritems()):
-            if idx > 5:
+        cnt = 0
+        for partitionid, ballotids in partition_exmpls.iteritems():
+            if cnt > 5:
                 break
-            imgpaths_ordered = sorted(imgpaths, key=lambda p: img2page[p])
-            for i, imgpath in enumerate(imgpaths_ordered):
-                if i == len(ballot_sides):
-                    ballot_sides.append([imgpath])
-                else:
-                    ballot_sides[i].append(imgpath)
+            for ballotid in ballotids:
+                imgpaths = b2imgs[ballotid]
+                imgpaths_ordered = sorted(imgpaths, key=lambda imP: img2page[imP])
+                for side, imgpath in enumerate(imgpaths_ordered):
+                    if side == len(ballot_sides):
+                        ballot_sides.append([imgpath])
+                    else:
+                        ballot_sides[side].append(imgpath)
         self.defineattrs.start(ballot_sides, stateP)
 
     def stop(self):

@@ -56,6 +56,7 @@ class SelectTargetsMainPanel(wx.Panel):
 
     def stop(self):
         self.proj.removeCloseEvent(self.seltargets_panel.save_session)
+        self.seltargets_panel.save_session()
         self.export_results()
 
     def export_results(self):
@@ -535,27 +536,35 @@ class Toolbar(wx.Panel):
         self.Layout()
 
     def _setup_ui(self):
-        self.btn_addtarget = wx.Button(self, label="Add Target...")
-        self.btn_modify = wx.Button(self, label="Modify...")
-        self.btn_zoomin = wx.Button(self, label="Zoom In...")
-        self.btn_zoomout = wx.Button(self, label="Zoom Out...")
+        self.btn_addtarget = wx.Button(self, label="Add Target")
+        self.btn_addcontest = wx.Button(self, label="Add Contest")
+        self.btn_modify = wx.Button(self, label="Modify")
+        self.btn_zoomin = wx.Button(self, label="Zoom In")
+        self.btn_zoomout = wx.Button(self, label="Zoom Out")
         self.btn_infercontests = wx.Button(self, label="Infer Contest Regions..")
         self.btn_opts = wx.Button(self, label="Options...")
         self.sizer = wx.BoxSizer(wx.VERTICAL)
         btn_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        btn_sizer.AddMany([(self.btn_addtarget,), (self.btn_modify,),
+        btn_sizer.AddMany([(self.btn_addtarget,), (self.btn_addcontest), (self.btn_modify,),
                            (self.btn_zoomin,), (self.btn_zoomout,),
                            (self.btn_infercontests,), (self.btn_opts,)])
         self.sizer.Add(btn_sizer)
         self.SetSizer(self.sizer)
 
     def _setup_evts(self):
-        self.btn_addtarget.Bind(wx.EVT_BUTTON, lambda evt: self.setmode(BoxDrawPanel.M_CREATE))
+        self.btn_addtarget.Bind(wx.EVT_BUTTON, self.onButton_addtarget)
+        self.btn_addcontest.Bind(wx.EVT_BUTTON, self.onButton_addcontest)
         self.btn_modify.Bind(wx.EVT_BUTTON, lambda evt: self.setmode(BoxDrawPanel.M_IDLE))
         self.btn_zoomin.Bind(wx.EVT_BUTTON, lambda evt: self.parent.zoomin())
         self.btn_zoomout.Bind(wx.EVT_BUTTON, lambda evt: self.parent.zoomout())
         self.btn_infercontests.Bind(wx.EVT_BUTTON, lambda evt: self.parent.infercontests())
         self.btn_opts.Bind(wx.EVT_BUTTON, self.onButton_opts)
+    def onButton_addtarget(self, evt):
+        self.setmode(BoxDrawPanel.M_CREATE)
+        self.parent.imagepanel.boxtype = TargetBox
+    def onButton_addcontest(self, evt):
+        self.setmode(BoxDrawPanel.M_CREATE)
+        self.parent.imagepanel.boxtype = ContestBox
     def setmode(self, mode_m):
         self.parent.imagepanel.set_mode_m(mode_m)
     def onButton_opts(self, evt):
@@ -781,6 +790,9 @@ class BoxDrawPanel(ImagePanel):
         self.resize_orient = None # 'N', 'NE', etc...
 
         self.mode_m = BoxDrawPanel.M_CREATE
+
+        # BOXTYPE: Class of the Box to create
+        self.boxtype = Box
         
         # _x,_y keep track of last mouse position
         self._x, self._y = 0, 0
@@ -799,7 +811,7 @@ class BoxDrawPanel(ImagePanel):
     def startBox(self, x, y, boxtype=None):
         """ Starts creating a box at (x,y). """
         if boxtype == None:
-            boxtype = Box
+            boxtype = self.boxtype
         print "...Creating Box: {0}, {1}".format((x,y), boxtype)
         self.isCreate = True
         self.box_create = boxtype(x, y, x+1, y+1)
@@ -921,7 +933,7 @@ class BoxDrawPanel(ImagePanel):
         if self.mode_m == BoxDrawPanel.M_CREATE:
             print "...Creating Target box."
             self.clear_selected()
-            self.startBox(x, y, TargetBox)
+            self.startBox(x, y)
         elif self.mode_m == BoxDrawPanel.M_IDLE:
             boxes = self.get_boxes_within(x, y, mode='any')
             if boxes:
@@ -1067,9 +1079,12 @@ class TemplateMatchDrawPanel(BoxDrawPanel):
         x, y = evt.GetPositionTuple()
         if self.mode_m == BoxDrawPanel.M_CREATE and self.isCreate:
             box = self.finishBox(x, y)
-            imgpil = util_gui.imageToPil(self.img)
-            imgpil = imgpil.convert('L')
-            self.tempmatch_fn(box, imgpil)
+            if isinstance(box, TargetBox):
+                imgpil = util_gui.imageToPil(self.img)
+                imgpil = imgpil.convert('L')
+                self.tempmatch_fn(box, imgpil)
+            elif isinstance(box, ContestBox):
+                self.boxes.append(box)
             self.Refresh()
         else:
             BoxDrawPanel.onLeftUp(self, evt)

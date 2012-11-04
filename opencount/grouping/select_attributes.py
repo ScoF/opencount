@@ -58,12 +58,12 @@ class SelectAttributesMasterPanel(wx.Panel):
         else:
             self.boxes = {}
             self.usersel_exs = {}
-            partitions_map = pickle.load(open(pathjoin(proj.projdir_path,
-                                                       proj.partitions_map), 'rb'))
             b2imgs = pickle.load(open(proj.ballot_to_images, 'rb'))
             img2page = pickle.load(open(pathjoin(proj.projdir_path, proj.image_to_page), 'rb'))
+            partition_exmpls = pickle.load(open(pathjoin(proj.projdir_path,
+                                                         proj.partition_exmpls), 'rb'))
             blanks = [] # list of [[path_page0, path_page1, ...], ...]
-            for partitionID, ballotids in partitions_map.iteritems():
+            for partitionID, ballotids in partition_exmpls.iteritems():
                 # Choose an arbitrary voted ballot from this partition
                 imgpaths = b2imgs[ballotids[0]]
                 imgpaths_ordered = sorted(imgpaths, key=lambda imP: img2page[imP])
@@ -74,6 +74,7 @@ class SelectAttributesMasterPanel(wx.Panel):
         self.do_labelattribute(self.attridx)
         self.Fit()
     def stop(self):
+        self.project.removeCloseEvent(self.stop)
         self.save_boxes()
         self.save_session()
         self.export_results()
@@ -111,7 +112,8 @@ class SelectAttributesMasterPanel(wx.Panel):
 
     def export_results(self):
         """ Saves the attribute labelling results to .csv files to
-        proj.patch_loc_dir. Also, computes multiple exemplars.
+        proj.patch_loc_dir. Also, computes multiple exemplars. Also
+        saves the attribute labelling results to proj.partition_attrmap.
         """
         if not self.boxes:
             return
@@ -121,21 +123,31 @@ class SelectAttributesMasterPanel(wx.Panel):
             os.makedirs(self.project.patch_loc_dir)
         except:
             pass
+        img2b = pickle.load(open(self.project.image_to_ballot, 'rb'))
+        partition_attrmap = {} # maps {int partitionID: [[imgpath, x, y, width, height, attrtype,
+                               #                          attrval, page, is_digitbased, is_tabulationonly], ...]
+        partitions_map = pickle.load(open(pathjoin(self.project.projdir_path,
+                                                   self.project.partitions_map), 'rb'))
+        partitions_invmap = pickle.load(open(pathjoin(self.project.projdir_path,
+                                                      self.project.partitions_invmap), 'rb'))
         header = ("imgpath", "id", "x", "y", "width", "height", "attr_type",
                   "attr_val", "side", "is_digitbased", "is_tabulationonly")
         uid = 0
-        for ballotid, info in self.boxes.iteritems():
-            imgname = os.path.splitext(os.path.split(ballotid)[1])[0]
+        for imgpath, info in self.boxes.iteritems():
+            ballotid = img2b[imgpath]
+            partitionID = partitions_invmap[ballotid]
+            imgname = os.path.splitext(os.path.split(imgpath)[1])[0]
             outpath = pathjoin(self.project.patch_loc_dir,
                                "{0}_patchlocs.csv".format(imgname))
             f = open(outpath, 'w')
             writer = csv.DictWriter(f, header)
             util_gui._dictwriter_writeheader(f, header)
+            attrs_list = [] # [[imP,x,y,w,h,attrtype,attrval,page,isdigitbased,istabonly],...]
             for ((x1, y1, x2, y2), attrtype, attrval, patchpath, subpatchP) in info:
                 attrside = common.get_attr_prop(self.project, attrtype, 'side')
                 isdigitbased = common.get_attr_prop(self.project, attrtype, "is_digitbased")
                 istabonly = common.get_attr_prop(self.project, attrtype, "is_tabulationonly")
-                row = {"imgpath": ballotid, "id": uid,
+                row = {"imgpath": imgpath, "id": uid,
                        "x": x1, "y": y1,
                        "width": int(round(x2 - x1)),
                        "height": int(round(y2 - y1)),
@@ -143,9 +155,16 @@ class SelectAttributesMasterPanel(wx.Panel):
                        "side": attrside,
                        "is_digitbased": isdigitbased,
                        "is_tabulationonly": istabonly}
+                attrs_list.append([imgpath, x1, y1, x2-x1,y2-y1, attrtype, attrval,
+                                   attrside, isdigitbased, istabonly])
                 writer.writerow(row)
                 uid += 1
             f.close()
+            partition_attrmap.setdefault(partitionID, []).extend(attrs_list)
+        print partition_attrmap
+        pickle.dump(partition_attrmap, open(pathjoin(self.project.projdir_path,
+                                                     self.project.partition_attrmap), 'wb'),
+                    pickle.HIGHEST_PROTOCOL)
         outdir = os.path.join(self.project.projdir_path,
                               self.project.attrexemplars_dir)
         self.cluster_attr_patches(outdir)
